@@ -3,7 +3,7 @@ import re
 import src.core as core
 
 
-args_re = re.compile('(?:--|-)\w+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:\w+))?')
+args_re = re.compile('(?:--|-)[\w-]+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:[\w\\\/\.]+(?:-[\w\\\/\.]*)?))?')
 def parse_args(args):
     """
     Parse command line arguments e.g. 'login -A <token>'
@@ -22,10 +22,10 @@ def parse_args(args):
         if('\'' in t or '\"' in t):
             if('=' in t):
                 lval,rval = t.split('=',1)
-                pairs[lval] = rval
+                pairs[lval] = rval[1:-1]
             else:
                 lval,rval = t.split(' ',1)
-                pairs[lval] = rval
+                pairs[lval] = rval[1:-1]
         else:
             if('=' in t[:-1]):
                 lval,rval = t.split('=',1)
@@ -176,8 +176,14 @@ class BoxRepl(Cmd):
 
             -I  Use an ID to specify and item. e.g. '12345...'
         """
-        pass
-
+        argv = parse_args(args)
+        
+        if '-I' in argv:
+            print(self.core.iteminfo(argv['-I'], 'id'))
+        elif '-P' in argv:
+            print(self.core.iteminfo(argv['-P'], 'path'))
+        else:
+            print('unrecognized flag')
 #TREE
     def do_tree(self, args):
         """

@@ -21,40 +21,40 @@ class StoppableHttpServer (HTTPServer):
 
 class HTTPLoopbackHandler(BaseHTTPRequestHandler):
     """http handler that reacts to self.stop flag"""
-        stop = False
-        allow_reuse_address = True
+    stop = False
+    allow_reuse_address = True
 
-        def serve_forever(self):
-            """Handle one request at a time until stopped."""
-            while not self.stop:
-                self.handle_request()
+    def serve_forever(self):
+        """Handle one request at a time until stopped."""
+        while not self.stop:
+            self.handle_request()
 
-        def force_stop(self):
-            """forcibly close the server"""
-            self.server.server_close()
-            self.stop = True
-            self.server.stop = True
-            self.server.serve_forever()
+    def force_stop(self):
+        """forcibly close the server"""
+        self.server.server_close()
+        self.stop = True
+        self.server.stop = True
+        self.server.serve_forever()
 
-        def do_GET(self):
-            """GET is the ONLY http verb that we support"""
-            global auth_code
+    def do_GET(self):
+        """GET is the ONLY http verb that we support"""
+        global auth_code
 
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b'Login Successful!')
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'Login Successful!')
 
-            auth_code = parse_qs(urlparse(self.path).query)
-            
-            #kill this server after we respond to this
-            self.force_stop()
+        auth_code = parse_qs(urlparse(self.path).query)
+        
+        #kill this server after we respond to this
+        self.force_stop()
 
-        def log_message(self, format, *args):
-            #we don't care about log messages
-            pass
+    def log_message(self, format, *args):
+        #we don't care about log messages
+        pass
 
 
-                                  #CORE#
+                              #CORE#
 #------------------------------------------------------------------------------#
 class BoxCore:
 
@@ -96,17 +96,14 @@ class BoxCore:
             :rtype: json object
         """
         if type is 'unknown':
-            item_info = None
-            
             #try to get both types
-            try:
-                item_info = _get_folder(item_id)
-            except Exception as e:
-                try:
-                 item_info = _get_file(item_id)
-                except Exception as e:
-                    raise Exception("Item not found")
-
+            item_info = self._get_folder(item_id)
+            if item_info is None:
+                item_info = self._get_file(item_id)
+            
+            if item_info is None:
+                raise Exception("file not found")
+                
         elif type is 'folder':
             return self._get_folder(item_id)
 
@@ -115,11 +112,11 @@ class BoxCore:
 
     #Get folder by id
     def _get_folder(self, folder_id):
-        return self.client.folder(folder_id).get()
+        return self.client.folder(str(folder_id)).get()
 
     #Get file by id
     def _get_file(self, file_id):
-        return self.client.file(file_id).get()
+        return self.client.file(str(file_id)).get()
 
     #Log dev user in with token
     def _dev_login(self, token):
@@ -189,12 +186,28 @@ class BoxCore:
             :rtype: json object
         """
         if method is 'id':
-            return self._get_iteminfo(selector)
+            return self._get_iteminfo(selector, type='folder')
         elif method is 'name':
             #search for filename
             content = client.search().query(selector)
         elif method is 'path':
             #search a path
+            parent_id = ''
+            current_data = None
+            nodes = selector.split('/')
+            for node in nodes:
+                if node is '' or node is 'All Files':
+                    current_data = self._get_iteminfo('0', 'folder')
+                    parent_id = '0'
+                else:
+                    content = self.client.search().query(node, ancestor_folder_ids=parent_id, limit=1)
+                    matches = [r for r in content if r.name == node]
+                    if len(matches) > 0:
+                        current_data = matches[0]
+                        parent_id = matches[0].id
+                    else:
+                        raise Exception("<{}> in path <{}> does not exist".format(node, selector))
+            return current_data
             
 #------------------------------------------------------------------------------#
                          #Public helper functions#
@@ -226,8 +239,8 @@ class BoxCore:
         return self.client.user().get()
 
 #ITEMINFO
-    def iteminfo(self, args):
-        pass
+    def iteminfo(self, selector, method='id'):
+        return self._finditem(selector, method)
 
 #TREE
     def tree(self, args):
@@ -237,6 +250,5 @@ class BoxCore:
     def children(self, args):
         pass
 
-#FINDITEM
-    
+
 #------------------------------------------------------------------------------#
