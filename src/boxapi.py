@@ -3,12 +3,21 @@ import re
 import src.core as core
 
 
-args_val = re.compile('(?:--|-)\w+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:\w+))?')
+args_re = re.compile('(?:--|-)\w+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:\w+))?')
 def parse_args(args):
+    """
+    Parse command line arguments e.g. 'login -A <token>'
+    
+    :param args: the argument string
+    :type args: string
+    :return: arguments paired up with thier key or just arguments paired with an
+    int to count them
+    :rtype: dict
+    """
     single      = 0
     pairs       = {}
 
-    for m in args_val.finditer(args):
+    for m in args_re.finditer(args):
         t = m.group(0)
         if('\'' in t or '\"' in t):
             if('=' in t):
@@ -106,6 +115,19 @@ class BoxRepl(Cmd):
 
 #TOKENS
     def do_tokens(self, args):
+        """
+        NAME:
+            tokens - the currently stored tokens
+            
+        SYNOPSIS:
+            tokens
+            
+        DESCRIPTION:
+            Shows the current tokens
+
+        OPTIONS:
+            NONE
+        """
         print(self.core.tokens())
 
 #UID
@@ -266,10 +288,7 @@ if __name__ == '__main__':
     repl.prompt = '> '
     repl.cmdloop('Starting prompt...')
 
-
-
-
-
+#OLD TEST CODE
 #auth = OAuth2(
 #    client_id='ba6xqqqso7wauppnvtixr258oemo1cnk',
 #    client_secret='jB1t76Q4WlnRL8ETYwI2gc2Doa90Rrkm',

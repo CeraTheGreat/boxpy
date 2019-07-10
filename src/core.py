@@ -94,7 +94,7 @@ class BoxCore:
             :type type: string
             :return: the full info on the specified item
             :rtype: json object
-            """
+        """
         if type is 'unknown':
             item_info = None
             
@@ -180,6 +180,22 @@ class BoxCore:
         self.oauth.authenticate(auth_code['code'])
         self.client = Client(self.oauth)
 
+    def _finditem(self, selector, method='id'):
+        """ :param selector: the identifier for the content you want
+            :param method: the method for searching - 'id', 'name', 'path'
+            :type selector: string
+            :type method: string
+            :return: the full info on the specified item
+            :rtype: json object
+        """
+        if method is 'id':
+            return self._get_iteminfo(selector)
+        elif method is 'name':
+            #search for filename
+            content = client.search().query(selector)
+        elif method is 'path':
+            #search a path
+            
 #------------------------------------------------------------------------------#
                          #Public helper functions#
 #------------------------------------------------------------------------------#
@@ -222,9 +238,5 @@ class BoxCore:
         pass
 
 #FINDITEM
-    def finditem(self, selector, method='id'):
-        if method is 'id':
-            return self.client.file(selector).get()
-        else:
-            pass
+    
 #------------------------------------------------------------------------------#
