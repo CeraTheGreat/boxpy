@@ -190,7 +190,6 @@ class BoxRepl(Cmd):
             -v  Verbose show all
         """
         arg,argkp = parse_args(args)
-        print(arg,argkp)
         result = None
                 
         if '-I' in argkp:
@@ -208,19 +207,19 @@ class BoxRepl(Cmd):
                                                          name=result.name)
         
         if '-d' in arg or '-v' in arg:
-            printstr += "\n\tdescription: {}".format(result.description)
+            printstr += "\n    :description: {}".format(result.description)
         if '-h' in arg or '-v' in arg and result.type=='file':
-            printstr += "\n\tsha1: {}".format(result.sha1)
+            printstr += "\n    :sha1: {}".format(result.sha1)
         if '-o' in arg or '-v' in arg and result.type=='file':
-            printstr += "\n\towner: {}".format(result.owner)  
+            printstr += "\n    :owner: {}".format(result.owner)  
         if '-p' in arg or '-v' in arg:
-            printstr += "\n\tparent: <Box {type} - {id} ({name})>".format(type=result.parent.type.capitalize(),
+            printstr += "\n    :parent: <Box {type} - {id} ({name})>".format(type=result.parent.type.capitalize(),
                                                                           id=result.parent.id,
                                                                           name=result.parent.name)                                                                                 
         if '-s' in arg or '-v' in arg:
-            printstr += "\n\tsize: {}".format(result.size)
+            printstr += "\n    :size: {}".format(result.size)
         if '-t' in arg or '-v' in arg:
-            printstr += "\n\tstatus: {}".format(result.item_status)
+            printstr += "\n    :status: {}".format(result.item_status)
         
         print(printstr)   
         
@@ -321,8 +320,106 @@ class BoxRepl(Cmd):
 
 #CHILDREN
     def do_children(self, args):
-        pass
+        """
+        NAME:
+            children - show the chlidren of a Box Folder
 
+        SYNOPSIS:
+            children [-P file_path] [options]
+            children [-I file_id] [options]
+
+        DESCRIPTION:
+            Displays the children of a Box Folder
+
+        OPTIONS:
+            The -P and -I options specify unique locations in the box repository.
+            To see the item structure of your Box repository, use `tree`.
+
+            -P  Use a filepath to specify a item. e.g. '/a/b/fileorfolder'
+
+            -I  Use an ID to specify and item. e.g. '12345...'
+            
+            -d  Show description
+            
+            -h  Show sha1 hash
+            
+            -o  Show owner
+            
+            -p  Show parent
+            
+            -s  Show size
+            
+            -t  Show status
+            
+            -v  Verbose show all
+        """
+    
+        arg,argkp = parse_args(args)
+        result = None
+                
+        if '-I' in argkp:
+            result = self.core.iteminfo(argkp['-I'], 'id') 
+        elif '-P' in argkp:
+            result = self.core.iteminfo(argkp['-P'], 'path')
+        else:
+            print('unrecognized flag')
+            return
+        
+        
+        printstr = "<Box {type} - {id} ({name})>".format(type=result.type.capitalize(),
+                                                         id=result.id,
+                                                         name=result.name)
+        
+        if result.type != 'folder':
+            print('item {} was not folder', printstr)
+            return
+        
+        children = result.item_collection['entries']
+           
+        if '-d' in arg or '-v' in arg:
+            printstr += "\n    :description: {}".format(result.description)
+        if '-h' in arg or '-v' in arg and result.type=='file':
+            printstr += "\n    :sha1: {}".format(result.sha1)
+        if '-o' in arg or '-v' in arg and result.type=='file':
+            printstr += "\n    :owner: {}".format(result.owned_by)  
+        if '-p' in arg or '-v' in arg and result.parent is not None:
+            printstr += "\n    :parent: <Box {type} - {id} ({name})>".format(type=result.parent.type.capitalize(),
+                                                                          id=result.parent.id,
+                                                                          name=result.parent.name)                                                                                 
+        if '-s' in arg or '-v' in arg:
+            printstr += "\n    :size: {}".format(result.size)
+        if '-t' in arg or '-v' in arg:
+            printstr += "\n    :status: {}".format(result.item_status)
+        
+        print(printstr)
+
+        for mini_child in children:
+
+            child = self.core.iteminfo(mini_child.id, method='id', type=mini_child.type)
+            
+            child_printstr = "    <Box {type} - {id} ({name})>".format(type=child.type.capitalize(),
+                                                             id=child.id,
+                                                             name=child.name)
+
+            if '-d' in arg or '-v' in arg:
+                child_printstr += "\n        :description: {}".format(child.description)
+            if '-h' in arg or '-v' in arg and child.type=='file':
+                child_printstr += "\n        :sha1: {}".format(child.sha1)
+            if '-o' in arg or '-v' in arg and child.type=='file':
+                child_printstr += "\n        :owner: {}".format(child.owned_by)  
+            if '-p' in arg or '-v' in arg:
+                child_printstr += "\n        :parent: <Box {type} - {id} ({name})>".format(type=child.parent.type.capitalize(),
+                                                                              id=child.parent.id,
+                                                                              name=child.parent.name)                                                                                 
+            if '-s' in arg or '-v' in arg:
+                child_printstr += "\n        :size: {}".format(child.size)
+            if '-t' in arg or '-v' in arg:
+                child_printstr += "\n        :status: {}".format(child.item_status)
+            
+            print(child_printstr)
+        
+        
+        
 #QUIT
     def do_quit(self, *args):
         self.core.logout()

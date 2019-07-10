@@ -95,7 +95,7 @@ class BoxCore:
             :return: the full info on the specified item
             :rtype: json object
         """
-        if type is 'unknown':
+        if type == 'unknown':
             #try to get both types
             item_info = self._get_folder(item_id)
             if item_info is None:
@@ -103,11 +103,12 @@ class BoxCore:
             
             if item_info is None:
                 raise Exception("file not found")
-                
-        elif type is 'folder':
+             
+            return item_info
+        elif type == 'folder':
             return self._get_folder(item_id)
 
-        elif type is 'file':
+        elif type == 'file':
             return self._get_file(item_id)
 
     #Get folder by id
@@ -177,7 +178,7 @@ class BoxCore:
         self.oauth.authenticate(auth_code['code'])
         self.client = Client(self.oauth)
 
-    def _finditem(self, selector, method='id'):
+    def _finditem(self, selector, method='id', type='unknown'):
         """ :param selector: the identifier for the content you want
             :param method: the method for searching - 'id', 'name', 'path'
             :type selector: string
@@ -185,18 +186,15 @@ class BoxCore:
             :return: the full info on the specified item
             :rtype: json object
         """
-        if method is 'id':
-            return self._get_iteminfo(selector, type='folder')
-        elif method is 'name':
-            #search for filename
-            content = client.search().query(selector)
-        elif method is 'path':
+        if method == 'id':
+            return self._get_iteminfo(selector,type)
+        elif method == 'path':
             #search a path
             parent_id = ''
             current_data = None
             nodes = selector.split('/')
             for node in nodes:
-                if node is '' or node is 'All Files':
+                if node == '' or node == 'All Files':
                     current_data = self._get_iteminfo('0', 'folder')
                     parent_id = '0'
                 else:
@@ -207,7 +205,7 @@ class BoxCore:
                         parent_id = matches[0].id
                     else:
                         raise Exception("<{}> in path <{}> does not exist".format(node, selector))
-            return current_data
+            return self._get_iteminfo(current_data.id)
             
 #------------------------------------------------------------------------------#
                          #Public helper functions#
@@ -239,15 +237,11 @@ class BoxCore:
         return self.client.user().get()
 
 #ITEMINFO
-    def iteminfo(self, selector, method='id'):
-        return self._finditem(selector, method)
+    def iteminfo(self, selector, method='id', type='unknown'):
+        return self._finditem(selector, method, type)
 
 #TREE
     def tree(self, args):
-        pass
-
-#CHILDREN
-    def children(self, args):
         pass
 
 
