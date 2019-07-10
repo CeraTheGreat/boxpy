@@ -14,7 +14,7 @@ def parse_args(args):
     int to count them
     :rtype: dict
     """
-    single      = 0
+    single      = []
     pairs       = {}
 
     for m in args_re.finditer(args):
@@ -34,10 +34,9 @@ def parse_args(args):
                 lval,rval = t.split(' ',1)
                 pairs[lval] = rval
             else:
-                pairs[single] = t
-                single += 1
+                single.append(t)
 
-    return pairs
+    return (single, pairs)
 
                                       #REPL#
 #------------------------------------------------------------------------------#
@@ -69,12 +68,12 @@ class BoxRepl(Cmd):
         OPTIONS:
             NONE
         """
-        argv = parse_args(args)
+        arg,argkv = parse_args(args)
 
         try:
 
-            if '-A' in argv:
-                self.core.login(id=argv['-A'])
+            if '-A' in argkv:
+                self.core.login(id=argkv['-A'])
             else:
                 self.core.login()
 
@@ -161,8 +160,8 @@ class BoxRepl(Cmd):
             iteminfo - show the info (not the content) of a item on Box
 
         SYNOPSIS:
-            iteminfo [-P file_path]
-            iteminfo [-I file_id]
+            iteminfo [-P file_path] [options]
+            iteminfo [-I file_id] [options]
 
         DESCRIPTION:
             Displays information on a item. This is NOT the content of the item,
@@ -175,15 +174,56 @@ class BoxRepl(Cmd):
             -P  Use a filepath to specify a item. e.g. '/a/b/fileorfolder'
 
             -I  Use an ID to specify and item. e.g. '12345...'
+            
+            -d  Show description
+            
+            -h  Show sha1 hash
+            
+            -o  Show owner
+            
+            -p  Show parent
+            
+            -s  Show size
+            
+            -t  Show status
+            
+            -v  Verbose show all
         """
-        argv = parse_args(args)
-        
-        if '-I' in argv:
-            print(self.core.iteminfo(argv['-I'], 'id'))
-        elif '-P' in argv:
-            print(self.core.iteminfo(argv['-P'], 'path'))
+        arg,argkp = parse_args(args)
+        print(arg,argkp)
+        result = None
+                
+        if '-I' in argkp:
+            result = self.core.iteminfo(argkp['-I'], 'id')
+            
+            
+        elif '-P' in argkp:
+            result = self.core.iteminfo(argkp['-P'], 'path')
         else:
             print('unrecognized flag')
+            return
+        
+        printstr = "<Box {type} - {id} ({name})>".format(type=result.type.capitalize(),
+                                                         id=result.id,
+                                                         name=result.name)
+        
+        if '-d' in arg or '-v' in arg:
+            printstr += "\n\tdescription: {}".format(result.description)
+        if '-h' in arg or '-v' in arg and result.type=='file':
+            printstr += "\n\tsha1: {}".format(result.sha1)
+        if '-o' in arg or '-v' in arg and result.type=='file':
+            printstr += "\n\towner: {}".format(result.owner)  
+        if '-p' in arg or '-v' in arg:
+            printstr += "\n\tparent: <Box {type} - {id} ({name})>".format(type=result.parent.type.capitalize(),
+                                                                          id=result.parent.id,
+                                                                          name=result.parent.name)                                                                                 
+        if '-s' in arg or '-v' in arg:
+            printstr += "\n\tsize: {}".format(result.size)
+        if '-t' in arg or '-v' in arg:
+            printstr += "\n\tstatus: {}".format(result.item_status)
+        
+        print(printstr)   
+        
 #TREE
     def do_tree(self, args):
         """
