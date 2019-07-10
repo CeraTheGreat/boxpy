@@ -4,6 +4,7 @@ import webbrowser
 from urllib.parse import urlparse
 from urllib.parse import parse_qs
 from pythonping import ping
+import requests
 
 auth_code = None
 

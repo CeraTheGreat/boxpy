@@ -1,8 +1,6 @@
 from cmd import Cmd
-import requests
 import re
-
-import core
+import src.core as core
 
 
 args_val = re.compile('(?:--|-)\w+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:\w+))?')
