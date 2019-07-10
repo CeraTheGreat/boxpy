@@ -256,7 +256,7 @@ class BoxRepl(Cmd):
         pass
 
 #QUIT
-    def do_quit(self, args):
+    def do_quit(self, *args):
         self.core.logout()
         raise SystemExit
 
