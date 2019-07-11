@@ -90,7 +90,7 @@ class BoxRepl(Cmd):
                 self.core.login()
 
         except Exception as e:
-            print("Could not login:",e)
+            print("Could not login token expired or invalid")
 
 #LOGOUT
     def do_logout(self, args):
@@ -302,14 +302,22 @@ class BoxRepl(Cmd):
     def do_cd(self, args):
         arg,argkv = parse_args(args)
         
-        self.core.cd(arg[0])
+        try:
+            self.core.cd(arg[0])
+        except Exception as e:
+            print(e)
         pass
         
 #MKDIR
     def do_mkdir(self, args):
         arg, argkv = parse_args(args)
         
-        self.core.mkdir(arg[0])
+        try:
+            self.core.mkdir(arg[0])
+        except Exception as e:
+            print(e)
+        pass
+        
        
 #RM
     def do_rm(self, args):
