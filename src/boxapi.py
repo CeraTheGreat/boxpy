@@ -1,24 +1,36 @@
 from cmd import Cmd
-import requests
 import re
+import src.core as core
 
-import core
 
+args_re = re.compile('((?:--|-)[\w\\\/:-]+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:[\w\\\/\.]+(?:-[\w\\\/\.]*)?))?)|((?:[\w.\\\/:]+)|(?:"[\w.\\\/:]+"))')
+col = '|  '
+e_tab = '=--'
+c_tab = '+--'
+tree_buffer = [['' for x in range (512)] for y in range(2048)]
 
-args_val = re.compile('(?:--|-)\w+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:\w+))?')
 def parse_args(args):
-    single      = 0
+    """
+    Parse command line arguments e.g. 'login -A <token>'
+
+    :param args: the argument string
+    :type args: string
+    :return: arguments paired up with thier key or just arguments paired with an
+    int to count them
+    :rtype: dict
+    """
+    single      = []
     pairs       = {}
 
-    for m in args_val.finditer(args):
+    for m in args_re.finditer(args):
         t = m.group(0)
         if('\'' in t or '\"' in t):
             if('=' in t):
                 lval,rval = t.split('=',1)
-                pairs[lval] = rval
+                pairs[lval] = rval[1:-1]
             else:
                 lval,rval = t.split(' ',1)
-                pairs[lval] = rval
+                pairs[lval] = rval[1:-1]
         else:
             if('=' in t[:-1]):
                 lval,rval = t.split('=',1)
@@ -27,10 +39,9 @@ def parse_args(args):
                 lval,rval = t.split(' ',1)
                 pairs[lval] = rval
             else:
-                pairs[single] = t
-                single += 1
+                single.append(t)
 
-    return pairs
+    return (single, pairs)
 
                                       #REPL#
 #------------------------------------------------------------------------------#
@@ -40,6 +51,7 @@ class BoxRepl(Cmd):
         super(BoxRepl, self).__init__()
 
         self.core = core.BoxCore()
+
 
 #LOGIN
     def do_login(self, args):
@@ -62,12 +74,12 @@ class BoxRepl(Cmd):
         OPTIONS:
             NONE
         """
-        argv = parse_args(args)
+        arg,argkv = parse_args(args)
 
         try:
 
-            if '-A' in argv:
-                self.core.login(id=argv['-A'])
+            if '-A' in argkv:
+                self.core.login(id=argkv['-A'])
             else:
                 self.core.login()
 
@@ -108,6 +120,19 @@ class BoxRepl(Cmd):
 
 #TOKENS
     def do_tokens(self, args):
+        """
+        NAME:
+            tokens - the currently stored tokens
+
+        SYNOPSIS:
+            tokens
+
+        DESCRIPTION:
+            Shows the current tokens
+
+        OPTIONS:
+            NONE
+        """
         print(self.core.tokens())
 
 #UID
@@ -141,124 +166,111 @@ class BoxRepl(Cmd):
             iteminfo - show the info (not the content) of a item on Box
 
         SYNOPSIS:
-            iteminfo [-P file_path]
-            iteminfo [-I file_id]
+            iteminfo file_name [options]
 
         DESCRIPTION:
             Displays information on a item. This is NOT the content of the item,
             but information that Box provides about the item.
 
         OPTIONS:
-            The -P and -I options specify unique locations in the box repository.
-            To see the item structure of your Box repository, use `tree`.
 
-            -P  Use a filepath to specify a item. e.g. '/a/b/fileorfolder'
+            -V  Verbose, show all
 
-            -I  Use an ID to specify and item. e.g. '12345...'
+            -d  Show description
+
+            -h  Show sha1 hash
+
+            -o  Show owner
+
+            -p  Show parent
+
+            -s  Show size
+
+            -t  Show status
+
+            -v  Show version
         """
-        pass
+        arg,argkp = parse_args(args)
+        result = None
 
-#TREE
-    def do_tree(self, args):
+        if len(arg) == 0:
+            print("filename must be supplied")
+        else:
+            try:
+                result = self.core.iteminfo(arg[0])
+            except Exception as e:
+                print("error: {}".format(e))
+                return
+        
+
+        printstr = "<Box {type} - {id} ({name})>".format(type=result.type.capitalize(),
+                                                         id=result.id,
+                                                         name=result.name)
+
+        if '-d' in arg or '-V' in arg:
+            printstr += "\n    :description: {}".format(result.description)
+        if ('-h' in arg or '-V' in arg) and result.type=='file':
+            printstr += "\n    :sha1: {}".format(result.sha1)
+        if ('-o' in arg or '-V' in arg) and result.type=='file':
+            printstr += "\n    :owner: {}".format(result.owned_by)
+        if ('-p' in arg or '-V' in arg) and result.parent is not None:
+            printstr += "\n    :parent: <Box {type} - {id} ({name})>".format(type=result.parent.type.capitalize(),
+                                                                          id=result.parent.id,
+                                                                          name=result.parent.name)
+        if '-s' in arg or '-V' in arg:
+            printstr += "\n    :size: {}".format(result.size)
+        if '-t' in arg or '-V' in arg:
+            printstr += "\n    :status: {}".format(result.item_status)
+        if ('-v' in arg or '-V' in arg) and result.type=='file':
+            printstr += "\n    :status: {}".format(result.file_version)
+
+        print(printstr)
+
+#DOWNLOAD
+    def do_download(self, args):
         """
         NAME:
-            tree - show the tree structure on a Box repository
+            download - download the content of a box file
 
         SYNOPSIS:
-            tree
-            tree [-I root_id] [-D depth] [Options]
+            download [filename] [local_path]
 
-        DESCRIPTION
-            Displays a tree structure representative of the file-strcture in
-            the current box repository. '+' indicates children within a folder.
-            '=' indicates no childrein within a folder. You can begin the tree
-            at any file and end it at any depth. By default <root_id> = '0' and
-            <depth> = 0.
-
-            By default the tree command will only display the names of items
-            found in it's search. This can be changed with flags like -i
-            (which include the file id in the results) or -s (which shows the
-            size of the file as reported by Box).
-
-            Ex:
-
-            > tree -I '0' -D 3
-
-            'All Files'
-            +--'folder1'
-            |
-            +--'folder2'
-            |  |
-            |  +--'subfolder1'
-            |  |  |
-            |  |  =--'nochildren'
-            |  |
-            |  +--'subfolder2'
-            |
-            +--'folder3'
-
-
-            > tree -D 3 -i -s
-
-            'All Files'
-            | :id:0001
-            | :size:2500
-            |
-            +--'folder1'
-            |    :id:0002
-            |    :size:1000
-            |
-            +--'folder2'
-            |  | :id:0003
-            |  | :size:500
-            |  |
-            |  +--'subfolder1'
-            |  |  | :id:0004
-            |  |  | :size:250
-            |  |  |
-            |  |  =--'nochildren'
-            |  |       :id:0005
-            |  |       :size:0
-            |  |
-            |  +--'subfolder2'
-            |       :id:0006
-            |       :size:250
-            |
-            +--'folder3'
-                 :id:0007
-                 :size:1000
+        DESCRIPTION:
+            Downloads the content of a Box file to the specified location on
+            your machine
 
         OPTIONS:
-            The -I and -D options are entirely optional, but allow the user more
-            control over what they see. Keeping the terminal from becoming too
-            messy.
-
-            -I  Specify a <root_id> which will be the start of the traversal.
-                This defaults to '0', the root folder for your Box repository.
-
-            -D  Specify a maximum depth to search to. A depth of 0 indicates no
-                depth limit.
-
-            -V  Verbose. Enable all data flags: -i, -s, -v.
-
-            -i  Show the id of items in the tree.
-
-            -s  Show the size of items in the tree.
-
-            -v  Show the version number (if available) of items in tree.
-
-            -l  display information inline rather than on separate lines.
-
-            -d  Show document items alongside file items.
         """
-        pass
+        arg,argkp = parse_args(args)
+        result = None
 
-#CHILDREN
-    def do_children(self, args):
-        pass
+        if len(arg) < 2:
+            print('must specify a filename and a download location')
+            return
 
+        try:
+            output_file = open(arg[1],'wb')
+            result = self.core.download(arg[0], output_file)
+            output_file.close()
+        except Exception as e:
+            print(e)
+            return
+            
+#LS
+    def do_ls(self, args):
+        arg,argkp = parse_args(args)
+        if '-f' in arg:
+            print(' | '.join(self.core.ls(force=True)))
+        else:
+            print(' | '.join(self.core.ls()))
+#CD 
+    def do_cd(self, args):
+        arg,argkp = parse_args(args)
+        
+        self.core.cd(arg[0])
+        pass
 #QUIT
-    def do_quit(self, args):
+    def do_quit(self, *args):
         self.core.logout()
         raise SystemExit
 
@@ -268,10 +280,7 @@ if __name__ == '__main__':
     repl.prompt = '> '
     repl.cmdloop('Starting prompt...')
 
-
-
-
-
+#OLD TEST CODE
 #auth = OAuth2(
 #    client_id='ba6xqqqso7wauppnvtixr258oemo1cnk',
 #    client_secret='jB1t76Q4WlnRL8ETYwI2gc2Doa90Rrkm',
