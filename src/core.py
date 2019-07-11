@@ -60,6 +60,11 @@ class BoxCore:
 
     #initializatoins
     def __init__(self):
+        self.current_path = [('/',0)]
+
+        self.current_files = {}
+        self.current_folders = {}
+        
         self.client = None
 
         self.client_id = 'ba6xqqqso7wauppnvtixr258oemo1cnk'
@@ -74,6 +79,7 @@ class BoxCore:
 
                             #Private Functions#
 #------------------------------------------------------------------------------#
+
     def _store_tokens(self, access_token, refresh_token):
         self.token_dict['access_token'],self.token_dict['refresh_token'] = access_token,refresh_token
 
@@ -83,11 +89,30 @@ class BoxCore:
             :return: the sparse children of the flie
             :rtype: json object
         """
-        folder_info = self._get_folder(folder_id).json
-        return folder_info['item_collection']['entries']
+        folder_info = self._get_folder(folder_id)
+        children = folder_info.item_collection['entries']
+        
+        
+        self.current_files = {}
+        self.current_folders = {}
+        for child in children:
+                if child.type == 'folder':
+                    self.current_folders[child.name] = child.id
+                else:
+                    self.current_files[child.name] = child.id
+        
+        return folder_info.item_collection['entries']
+        
+    def _get_children_cached(self):
+        """ :param folder_id: the id of the folder in the box repository
+            :type folder_id: string
+            :return: the sparse children of the file
+            :rtype: array
+        """
+        return [x for x in self.current_folders]+[x for x in self.current_files]
 
     #item_id: string, type: ['unknown','folder','file']
-    def _get_iteminfo(self, item_id, type='unknown'):
+    def _get_iteminfo(self, name, type='unknown'):
         """ :param item_id: the id of the item in the box repository
             :param type: the type of the item - 'file', 'folder', 'unknown'
             :type item_id: string
@@ -95,21 +120,12 @@ class BoxCore:
             :return: the full info on the specified item
             :rtype: json object
         """
-        if type == 'unknown':
-            #try to get both types
-            item_info = self._get_folder(item_id)
-            if item_info is None:
-                item_info = self._get_file(item_id)
-            
-            if item_info is None:
-                raise Exception("file not found")
-             
-            return item_info
-        elif type == 'folder':
-            return self._get_folder(item_id)
-
-        elif type == 'file':
-            return self._get_file(item_id)
+        if name in self.current_files:
+            return self._get_file(self.current_files[name])
+        elif name in self.current_folders:
+            return self._get_folder(self.current_folders[name])
+        else:
+            raise Exception("file not found")
 
     #Get folder by id
     def _get_folder(self, folder_id):
@@ -118,6 +134,13 @@ class BoxCore:
     #Get file by id
     def _get_file(self, file_id):
         return self.client.file(str(file_id)).get()
+
+    def _download_file(self, file_id, dest_stream):
+        return self.client.file(str(file_id)).download_to(dest_stream)
+        
+    def _upload_file(self, dest_folder_id, source_path):
+        new_file = self.client.folder(dest_folder_id).upload(source_path)
+        return new_file
 
     #Log dev user in with token
     def _dev_login(self, token):
@@ -134,6 +157,7 @@ class BoxCore:
             access_token=token
         )
         self.client = Client(self.oauth)
+        self._get_children(self.current_path[-1][1]) 
 
     #Log a regular user in
     def _user_login(self):
@@ -177,35 +201,8 @@ class BoxCore:
         #do authentication
         self.oauth.authenticate(auth_code['code'])
         self.client = Client(self.oauth)
+        self._get_children(self.current_path[-1][1]) 
 
-    def _finditem(self, selector, method='id', type='unknown'):
-        """ :param selector: the identifier for the content you want
-            :param method: the method for searching - 'id', 'name', 'path'
-            :type selector: string
-            :type method: string
-            :return: the full info on the specified item
-            :rtype: json object
-        """
-        if method == 'id':
-            return self._get_iteminfo(selector,type)
-        elif method == 'path':
-            #search a path
-            parent_id = ''
-            current_data = None
-            nodes = selector.split('/')
-            for node in nodes:
-                if node == '' or node == 'All Files':
-                    current_data = self._get_iteminfo('0', 'folder')
-                    parent_id = '0'
-                else:
-                    content = self.client.search().query(node, ancestor_folder_ids=parent_id, limit=1)
-                    matches = [r for r in content if r.name == node]
-                    if len(matches) > 0:
-                        current_data = matches[0]
-                        parent_id = matches[0].id
-                    else:
-                        raise Exception("<{}> in path <{}> does not exist".format(node, selector))
-            return self._get_iteminfo(current_data.id)
             
 #------------------------------------------------------------------------------#
                          #Public helper functions#
@@ -237,12 +234,36 @@ class BoxCore:
         return self.client.user().get()
 
 #ITEMINFO
-    def iteminfo(self, selector, method='id', type='unknown'):
-        return self._finditem(selector, method, type)
+    def iteminfo(self, name):
+        return self._get_iteminfo(name)
+        
+#LS
+    def ls(self, force=False):
+        if force:
+            return [x.name for x in self._get_children(self.current_path[-1][1])]
+        else:
+            return self._get_children_cached()
+        
+#CD
+    def cd(self, foldername):
+        if foldername in self.current_folders:
+        
+            self.current_path.append((foldername,self.current_folders[foldername]))
+            self._get_children(self.current_path[-1][1])           
+                    
+        elif foldername == '..' and self.current_path[-1][1] != 0:
+        
+            del self.current_path[-1]          
+            self._get_children(self.current_path[-1][1])
 
-#TREE
-    def tree(self, args):
-        pass
-
+        else:
+            raise Exception("folder not found")
+            
+#DOWNLOAD
+    def download(self, filename, dest_stream):
+        if filename in self.current_files:
+            return self._download_file(self.current_files[filename], dest_stream)
+        else:
+            raise Exception("file not found")
 
 #------------------------------------------------------------------------------#
