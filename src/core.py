@@ -4,6 +4,8 @@ from urllib.parse import parse_qs
 from pythonping import ping
 import src.oauth as oauth
 
+
+
                               #CORE#
 #------------------------------------------------------------------------------#
 class BoxCore:
@@ -136,11 +138,11 @@ class BoxCore:
 
 #LOGOUT
     def logout(self):
-        self.oauth.logout()
+        self.authenticator.logout()
 
 #TOKENS
     def tokens(self):
-        return(self.token_dict)
+        return(self.authenticator.token_dict)
 
 #UID
     def uid(self):
@@ -156,7 +158,9 @@ class BoxCore:
             return [x.name for x in self._get_children(self.current_path[-1][1])]
         else:
             return self._get_children_cached()
-        
+#PWD
+    def pwd(self):
+        return '/'+'/'.join([x[0] for x in self.current_path[1:]])
 #CD
     def cd(self, foldername):
         if foldername in self.current_folders:
@@ -169,6 +173,12 @@ class BoxCore:
             del self.current_path[-1]          
             self._get_children(self.current_path[-1][1])
 
+        elif foldername in self.current_files:
+            raise Exception("not a folder")
+        
+        elif foldername == '..' and self.current_path[-1][1] == 0:
+            raise Exception("already at root")
+        
         else:
             raise Exception("folder not found")
             
