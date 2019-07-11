@@ -1,9 +1,10 @@
 from cmd import Cmd
 import re
 import src.core as core
+import os
 
 
-args_re = re.compile('((?:--|-)[\w\\\/:-]+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:[\w\\\/\.]+(?:-[\w\\\/\.]*)?))?)|((?:[\w.\\\/:]+)|(?:"[\w.\\\/:]+"))')
+args_re = re.compile('((?:--|-)[\w\\\/\:\-]+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:[\w\\\/\.]+(?:-[\w\\\/\.\-\(\)]*)?))?)|((?:[\w\.\\\/\:\~\(\)\-]+)|(?:"[\w\.\\\/\:\~]+"))')
 col = '|  '
 e_tab = '=--'
 c_tab = '+--'
@@ -42,6 +43,11 @@ def parse_args(args):
                 single.append(t)
 
     return (single, pairs)
+
+def fixpath(path):
+    path = os.path.normpath(os.path.expanduser(path))
+    if path.startswith("\\"): return "C:" + path
+    return path
 
                                       #REPL#
 #------------------------------------------------------------------------------#
@@ -190,7 +196,7 @@ class BoxRepl(Cmd):
 
             -v  Show version
         """
-        arg,argkp = parse_args(args)
+        arg,argkv = parse_args(args)
         result = None
 
         if len(arg) == 0:
@@ -241,7 +247,7 @@ class BoxRepl(Cmd):
 
         OPTIONS:
         """
-        arg,argkp = parse_args(args)
+        arg,argkv = parse_args(args)
         result = None
 
         if len(arg) < 2:
@@ -249,26 +255,88 @@ class BoxRepl(Cmd):
             return
 
         try:
-            output_file = open(arg[1],'wb')
+            output_file = open(fixpath(arg[1]),'wb')
             result = self.core.download(arg[0], output_file)
             output_file.close()
         except Exception as e:
             print(e)
             return
             
+#UPLOAD
+    def do_upload(self, args):
+        """
+        NAME:
+            download - download the content of a box file
+
+        SYNOPSIS:
+            download [local_resource_path] [filename]
+
+        DESCRIPTION:
+            Uploads a file from your machine to the Box repository.
+
+        OPTIONS:
+        """
+        arg,argkv = parse_args(args)
+        result = None
+
+        if len(arg) < 2:
+            print('must specify a source and filename')
+            return
+
+        try:
+            source_file = open(fixpath(arg[0]),'rb')
+            result = self.core.upload(arg[1], source_file)
+            source_file.close()
+        except Exception as e:
+            print(e)
+            return
+            
 #LS
     def do_ls(self, args):
-        arg,argkp = parse_args(args)
+        arg,argkv = parse_args(args)
         if '-f' in arg:
             print(' | '.join(self.core.ls(force=True)))
         else:
             print(' | '.join(self.core.ls()))
 #CD 
     def do_cd(self, args):
-        arg,argkp = parse_args(args)
+        arg,argkv = parse_args(args)
         
         self.core.cd(arg[0])
         pass
+        
+#MKDIR
+    def do_mkdir(self, args):
+        arg, argkv = parse_args(args)
+        
+        self.core.mkdir(arg[0])
+       
+#RM
+    def do_rm(self, args):
+        arg,argkv = parse_args(args)
+        success = False
+        name = ''
+        if '-r' in arg:
+            name = arg[0]
+            success = self.core.rm(name,recursive=True)
+        elif '-r' in argkv:
+            name = argkv['-r']
+            success = self.core.rm(name,recursive=True)
+        elif len(arg) < 1:
+            print("no item specified")
+            return
+        else:
+            name = arg[0]
+            success = self.core.rm(name)
+            
+        if not success:
+            print("could not delete {}".format(name))
+            
+#CAT
+    def do_cat(self, args):
+        arg,argkv = parse_args(args)
+        
+        print(self.core.cat(arg[0]))
 #QUIT
     def do_quit(self, *args):
         self.core.logout()
