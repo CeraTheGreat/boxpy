@@ -4,10 +4,15 @@ import src.core as core
 
 
 args_re = re.compile('(?:--|-)[\w-]+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:[\w\\\/\.]+(?:-[\w\\\/\.]*)?))?')
+col = '|  '
+e_tab = '=--'
+c_tab = '+--'
+tree_buffer = [['' for x in range (512)] for y in range(2048)]
+
 def parse_args(args):
     """
     Parse command line arguments e.g. 'login -A <token>'
-    
+
     :param args: the argument string
     :type args: string
     :return: arguments paired up with thier key or just arguments paired with an
@@ -46,6 +51,69 @@ class BoxRepl(Cmd):
         super(BoxRepl, self).__init__()
 
         self.core = core.BoxCore()
+
+    def _tree_indenter(self, folder_id, line, level, max_level, args):
+
+        offset = 1
+        arg,argkv = args
+        result = self.core._get_iteminfo(folder_id)
+
+        line = "{}{}'{}'".format('' if level < 1 else '   ' * (level - 1),
+                                 '' if level == 0 else '+--',
+                                 result.name)
+
+
+        if '-d' in arg or '-v' in arg:
+            temp = list("  {}:description: {}".format('   ' * (level),
+                                                      result.description))
+            tree_buffer[offset][:len(temp)] = temp
+            offset += 1
+
+        if '-h' in arg or '-v' in arg and result.type=='file':
+            temp = list("  {}:sha1: {}".format('   ' * (level),
+                                               result.sha1))
+            tree_buffer[offset][:len(temp)] = temp
+            offset += 1
+
+        if '-o' in arg or '-v' in arg and result.type=='file':
+            temp = list("  {}:owner: {}".format('   ' * (level),
+                                                result.owned_by))
+            tree_buffer[offset][:len(temp)] = temp
+            offset += 1
+
+        if '-p' in arg or '-v' in arg and result.parent is not None:
+            temp = list("  {}:parent: <Box {type} - {id} ({name})>".format('   ' * (level),
+                                                                           type=result.parent.type.capitalize(),
+                                                                           id=result.parent.id,
+                                                                           name=result.parent.name))
+            tree_buffer[offset][:len(temp)] = temp
+            offset += 1
+
+        if '-s' in arg or '-v' in arg:
+            temp = list("  {}:size: {}".format('   ' * (level),
+                                               result.size))
+            tree_buffer[offset][:len(temp)] = temp
+            offset += 1
+
+        if '-t' in arg or '-v' in arg:
+            temp = list("  {}:status: {}".format('   ' * (level),
+                                               result.item_status))
+            tree_buffer[offset][:len(temp)] = temp
+            offset += 1
+
+        if result.type == 'folder' and result.item_collection['total_count'] > 0:
+            children = result.item_collection['entries']
+            for child in children:
+                self._tree_indenter(offset, level + 1, max_level, args)
+
+
+    def _tree_filler(self):
+        pass
+
+    def _tree_printer(self, folder_id, level, max_level, args):
+        _tree_indenter(folder_id, 0, level, max_level, args)
+        #_tree_filler()
+
 
 #LOGIN
     def do_login(self, args):
@@ -117,10 +185,10 @@ class BoxRepl(Cmd):
         """
         NAME:
             tokens - the currently stored tokens
-            
+
         SYNOPSIS:
             tokens
-            
+
         DESCRIPTION:
             Shows the current tokens
 
@@ -174,55 +242,55 @@ class BoxRepl(Cmd):
             -P  Use a filepath to specify a item. e.g. '/a/b/fileorfolder'
 
             -I  Use an ID to specify and item. e.g. '12345...'
-            
+
             -d  Show description
-            
+
             -h  Show sha1 hash
-            
+
             -o  Show owner
-            
+
             -p  Show parent
-            
+
             -s  Show size
-            
+
             -t  Show status
-            
+
             -v  Verbose show all
         """
         arg,argkp = parse_args(args)
         result = None
-                
+
         if '-I' in argkp:
             result = self.core.iteminfo(argkp['-I'], 'id')
-            
-            
+
+
         elif '-P' in argkp:
             result = self.core.iteminfo(argkp['-P'], 'path')
         else:
             print('unrecognized flag')
             return
-        
+
         printstr = "<Box {type} - {id} ({name})>".format(type=result.type.capitalize(),
                                                          id=result.id,
                                                          name=result.name)
-        
+
         if '-d' in arg or '-v' in arg:
             printstr += "\n    :description: {}".format(result.description)
         if '-h' in arg or '-v' in arg and result.type=='file':
             printstr += "\n    :sha1: {}".format(result.sha1)
         if '-o' in arg or '-v' in arg and result.type=='file':
-            printstr += "\n    :owner: {}".format(result.owner)  
+            printstr += "\n    :owner: {}".format(result.owner)
         if '-p' in arg or '-v' in arg:
             printstr += "\n    :parent: <Box {type} - {id} ({name})>".format(type=result.parent.type.capitalize(),
                                                                           id=result.parent.id,
-                                                                          name=result.parent.name)                                                                                 
+                                                                          name=result.parent.name)
         if '-s' in arg or '-v' in arg:
             printstr += "\n    :size: {}".format(result.size)
         if '-t' in arg or '-v' in arg:
             printstr += "\n    :status: {}".format(result.item_status)
-        
-        print(printstr)   
-        
+
+        print(printstr)
+
 #TREE
     def do_tree(self, args):
         """
@@ -230,8 +298,8 @@ class BoxRepl(Cmd):
             tree - show the tree structure on a Box repository
 
         SYNOPSIS:
-            tree
-            tree [-I root_id] [-D depth] [Options]
+            tree [-P root_path] [-D depth] [options]
+            tree [-I root_id] [-D depth] [options]
 
         DESCRIPTION
             Displays a tree structure representative of the file-strcture in
@@ -266,32 +334,32 @@ class BoxRepl(Cmd):
             > tree -D 3 -i -s
 
             'All Files'
-            | :id:0001
-            | :size:2500
-            |
+              :id:0001
+              :size:2500
+
             +--'folder1'
-            |    :id:0002
-            |    :size:1000
-            |
-            +--'folder2'
-            |  | :id:0003
-            |  | :size:500
-            |  |
-            |  +--'subfolder1'
-            |  |  | :id:0004
-            |  |  | :size:250
-            |  |  |
-            |  |  =--'nochildren'
-            |  |       :id:0005
-            |  |       :size:0
-            |  |
-            |  +--'subfolder2'
-            |       :id:0006
-            |       :size:250
-            |
-            +--'folder3'
-                 :id:0007
+                 :id:0002
                  :size:1000
+
+               +--'folder2'
+                    :id:0003
+                    :size:500
+
+                  +--'subfolder1'
+                       :id:0004
+                       :size:250
+
+                     =--'nochildren'
+                          :id:0005
+                          :size:0
+
+                  +--'subfolder2'
+                     :id:0006
+                     :size:250
+
+               +--'folder3'
+                  :id:0007
+                  :size:1000
 
         OPTIONS:
             The -I and -D options are entirely optional, but allow the user more
@@ -316,7 +384,30 @@ class BoxRepl(Cmd):
 
             -d  Show document items alongside file items.
         """
-        pass
+
+        arg,argkp = parse_args(args)
+        result = None
+
+        if '-I' in argkp:
+            result = self.core.iteminfo(argkp['-I'], 'id')
+        elif '-P' in argkp:
+            result = self.core.iteminfo(argkp['-P'], 'path')
+        else:
+            print('unrecognized flag')
+            return
+
+        depth = 0
+        if '-D' in argkp:
+            depth = int(argkp['-D'])
+
+        if result.type != 'folder':
+            print('not a folder')
+            return
+
+        self._tree_printer(result.id,0,depth,(arg,argkp))
+
+
+
 
 #CHILDREN
     def do_children(self, args):
@@ -338,65 +429,65 @@ class BoxRepl(Cmd):
             -P  Use a filepath to specify a item. e.g. '/a/b/fileorfolder'
 
             -I  Use an ID to specify and item. e.g. '12345...'
-            
+
             -d  Show description
-            
+
             -h  Show sha1 hash
-            
+
             -o  Show owner
-            
+
             -p  Show parent
-            
+
             -s  Show size
-            
+
             -t  Show status
-            
+
             -v  Verbose show all
         """
-    
+
         arg,argkp = parse_args(args)
         result = None
-                
+
         if '-I' in argkp:
-            result = self.core.iteminfo(argkp['-I'], 'id') 
+            result = self.core.iteminfo(argkp['-I'], 'id')
         elif '-P' in argkp:
             result = self.core.iteminfo(argkp['-P'], 'path')
         else:
             print('unrecognized flag')
             return
-        
-        
+
+
         printstr = "<Box {type} - {id} ({name})>".format(type=result.type.capitalize(),
                                                          id=result.id,
                                                          name=result.name)
-        
+
         if result.type != 'folder':
             print('item {} was not folder', printstr)
             return
-        
+
         children = result.item_collection['entries']
-           
+
         if '-d' in arg or '-v' in arg:
             printstr += "\n    :description: {}".format(result.description)
         if '-h' in arg or '-v' in arg and result.type=='file':
             printstr += "\n    :sha1: {}".format(result.sha1)
         if '-o' in arg or '-v' in arg and result.type=='file':
-            printstr += "\n    :owner: {}".format(result.owned_by)  
+            printstr += "\n    :owner: {}".format(result.owned_by)
         if '-p' in arg or '-v' in arg and result.parent is not None:
             printstr += "\n    :parent: <Box {type} - {id} ({name})>".format(type=result.parent.type.capitalize(),
                                                                           id=result.parent.id,
-                                                                          name=result.parent.name)                                                                                 
+                                                                          name=result.parent.name)
         if '-s' in arg or '-v' in arg:
             printstr += "\n    :size: {}".format(result.size)
         if '-t' in arg or '-v' in arg:
             printstr += "\n    :status: {}".format(result.item_status)
-        
+
         print(printstr)
 
         for mini_child in children:
 
             child = self.core.iteminfo(mini_child.id, method='id', type=mini_child.type)
-            
+
             child_printstr = "    <Box {type} - {id} ({name})>".format(type=child.type.capitalize(),
                                                              id=child.id,
                                                              name=child.name)
@@ -406,20 +497,20 @@ class BoxRepl(Cmd):
             if '-h' in arg or '-v' in arg and child.type=='file':
                 child_printstr += "\n        :sha1: {}".format(child.sha1)
             if '-o' in arg or '-v' in arg and child.type=='file':
-                child_printstr += "\n        :owner: {}".format(child.owned_by)  
+                child_printstr += "\n        :owner: {}".format(child.owned_by)
             if '-p' in arg or '-v' in arg:
                 child_printstr += "\n        :parent: <Box {type} - {id} ({name})>".format(type=child.parent.type.capitalize(),
                                                                               id=child.parent.id,
-                                                                              name=child.parent.name)                                                                                 
+                                                                              name=child.parent.name)
             if '-s' in arg or '-v' in arg:
                 child_printstr += "\n        :size: {}".format(child.size)
             if '-t' in arg or '-v' in arg:
                 child_printstr += "\n        :status: {}".format(child.item_status)
-            
+
             print(child_printstr)
-        
-        
-        
+
+
+
 #QUIT
     def do_quit(self, *args):
         self.core.logout()
