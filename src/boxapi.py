@@ -55,7 +55,7 @@ class BoxRepl(Cmd):
     def __init__(self):
         super(BoxRepl, self).__init__()
 
-        
+
 
 
 #LOGIN
@@ -88,8 +88,9 @@ class BoxRepl(Cmd):
                 core.login()
 
         except Exception as e:
+            print(e)
             print("Could not login, token expired or invalid")
-            
+
         print('')
 
 #LOGOUT
@@ -122,7 +123,7 @@ class BoxRepl(Cmd):
                 print(e)
         else:
             print("user already logged out")
-            
+
         print('')
 
 #TOKENS
@@ -168,7 +169,7 @@ class BoxRepl(Cmd):
             print("not currently logged in")
 
         print('')
-        
+
 #ITEMINFO
     def do_iteminfo(self, args):
         """
@@ -212,7 +213,7 @@ class BoxRepl(Cmd):
             except Exception as e:
                 print("error: {}\n".format(e))
                 return
-        
+
 
         printstr = "<Box {type} - {id} ({name})>".format(type=result.type.capitalize(),
                                                          id=result.id,
@@ -268,7 +269,7 @@ class BoxRepl(Cmd):
         except Exception as e:
             print(e)
 
-        print('')    
+        print('')
 #UPLOAD
     def do_upload(self, args):
         """
@@ -297,7 +298,7 @@ class BoxRepl(Cmd):
         except Exception as e:
             print(e)
 
-        print('')    
+        print('')
 #LS
     def do_ls(self, args):
         """
@@ -313,7 +314,7 @@ class BoxRepl(Cmd):
         OPTIONS:
             -f  Force the cache to update. Boxpy caches files after every
                 traversal. If you think that files may have changed while you
-                were in the directory, you can use this flag to ensure that the 
+                were in the directory, you can use this flag to ensure that the
                 most recently available files are listed.
         """
         arg,argkv = parse_args(args)
@@ -321,7 +322,7 @@ class BoxRepl(Cmd):
             print(' | '.join(core.ls(force=True)))
         else:
             print(' | '.join(core.ls()))
-            
+
         print('')
 #PWD
     def do_pwd(self, args):
@@ -337,16 +338,16 @@ class BoxRepl(Cmd):
 
         OPTIONS:
         """
-        
+
         arg,argkv = parse_args(args)
-        
+
         try:
             print(core.pwd())
         except Exception as e:
             print(e)
         print('')
-        
-#CD 
+
+#CD
     def do_cd(self, args):
         """
         NAME:
@@ -360,15 +361,15 @@ class BoxRepl(Cmd):
 
         OPTIONS:
         """
-        
+
         arg,argkv = parse_args(args)
-        
+
         try:
             core.cd(arg[0])
         except Exception as e:
             print(e)
         print('')
-        
+
 #MKDIR
     def do_mkdir(self, args):
         """
@@ -383,16 +384,16 @@ class BoxRepl(Cmd):
 
         OPTIONS:
         """
-        
+
         arg, argkv = parse_args(args)
-        
+
         try:
             core.mkdir(arg[0])
         except Exception as e:
             print(e)
         print('')
-        
-       
+
+
 #RM
     def do_rm(self, args):
         """
@@ -409,7 +410,7 @@ class BoxRepl(Cmd):
             -r  Recursively remove items from a directory. Required if a
                 directory is not empty.
         """
-        
+
         arg,argkv = parse_args(args)
         success = False
         name = ''
@@ -425,10 +426,10 @@ class BoxRepl(Cmd):
         else:
             name = arg[0]
             success = core.rm(name)
-            
+
         if not success:
             print("could not delete {}".format(name))
-            
+
         print('')
 #CAT
     def do_cat(self, args):
@@ -445,7 +446,7 @@ class BoxRepl(Cmd):
         OPTIONS:
         """
         arg,argkv = parse_args(args)
-        
+
         print(core.cat(arg[0]))
         print('')
 #QUIT

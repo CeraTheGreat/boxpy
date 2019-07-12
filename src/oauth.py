@@ -3,6 +3,8 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import webbrowser
 import requests
 import json
+from urllib.parse import urlparse
+from urllib.parse import parse_qs
 
 auth_code = None
 
@@ -12,8 +14,8 @@ class BoxOAuth:
         cred_file = open('cred/cred.json',"r")
         cred_json = json.load(cred_file)
 
-        self.client_id = cred_json[client_id]
-        self.client_secret = cred_json[cred_json]
+        self.client_id = cred_json['client_id']
+        self.client_secret = cred_json['client_secret']
         self.redirect_port = 55655
         self.redirect_uri = 'http://localhost:{}/'.format(self.redirect_port)
 

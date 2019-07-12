@@ -16,7 +16,7 @@ class BoxCore:
 
         self.current_files = {}
         self.current_folders = {}
-        
+
         self.client = None
 
         self.authenticator = oauth.BoxOAuth()
@@ -31,8 +31,8 @@ class BoxCore:
         """
         folder_info = self._get_folder(folder_id)
         children = folder_info.item_collection['entries']
-        
-        
+
+
         self.current_files = {}
         self.current_folders = {}
         for child in children:
@@ -40,9 +40,9 @@ class BoxCore:
                     self.current_folders[child.name] = child.id
                 else:
                     self.current_files[child.name] = child.id
-        
+
         return folder_info.item_collection['entries']
-        
+
     def _get_children_cached(self):
         """ :param folder_id: the id of the folder in the box repository
             :type folder_id: string
@@ -77,10 +77,10 @@ class BoxCore:
 
     def _download_file_to_stream(self, file_id, dest_stream):
         return self.client.file(str(file_id)).download_to(dest_stream)
-        
+
     def _download_file(self, file_id):
         return self.client.file(str(file_id)).content()
-        
+
     def _upload_file(self, dest_folder_id, file_name, file_stream):
         new_file = self.client.folder(str(dest_folder_id)).upload_stream(file_stream, file_name)
         self.current_files[new_file.name] = new_file.id
@@ -102,30 +102,30 @@ class BoxCore:
         """
         Developer login, must use developer token generated from the
         Box application administration page.
-        
+
             :param token: the developer token
             :type token: string
         """
         self.authenticator.dev_login(token)
         self.client = Client(self.authenticator.oauth)
-        self._get_children(self.current_path[-1][1]) 
+        self._get_children(self.current_path[-1][1])
 
     #Log a regular user in
     def _user_login(self):
         """
         User login, uses OAuth2
         """
-        self.authenticator.login()
+        self.authenticator.user_login()
         self.client = Client(self.authenticator.oauth)
-        self._get_children(self.current_path[-1][1]) 
+        self._get_children(self.current_path[-1][1])
 
-            
+
 #------------------------------------------------------------------------------#
                          #Public helper functions#
 #------------------------------------------------------------------------------#
     def is_logged_in(self):
         return True if self.client is not None else False
-        
+
 #------------------------------------------------------------------------------#
                               #REPL commands#
 #------------------------------------------------------------------------------#
@@ -151,7 +151,7 @@ class BoxCore:
 #ITEMINFO
     def iteminfo(self, name):
         return self._get_iteminfo(name)
-        
+
 #LS
     def ls(self, force=False):
         if force:
@@ -164,24 +164,24 @@ class BoxCore:
 #CD
     def cd(self, foldername):
         if foldername in self.current_folders:
-        
+
             self.current_path.append((foldername,self.current_folders[foldername]))
-            self._get_children(self.current_path[-1][1])           
-                    
+            self._get_children(self.current_path[-1][1])
+
         elif foldername == '..' and self.current_path[-1][1] != 0:
-        
-            del self.current_path[-1]          
+
+            del self.current_path[-1]
             self._get_children(self.current_path[-1][1])
 
         elif foldername in self.current_files:
             raise Exception("not a folder")
-        
+
         elif foldername == '..' and self.current_path[-1][1] == 0:
             raise Exception("already at root")
-        
+
         else:
             raise Exception("folder not found")
-            
+
 #DOWNLOAD
     def download(self, filename, dest_stream):
         if filename in self.current_files:
@@ -192,7 +192,7 @@ class BoxCore:
 #UPLOAD
     def upload(self, filename, source_stream):
         return self._upload_file(self.current_path[-1][1], filename, source_stream)
-        
+
 #RM
     def rm(self, name, recursive=False):
         if name in self.current_folders:
@@ -207,11 +207,11 @@ class BoxCore:
             return succ
         else:
             raise Exception("file not found")
-        
+
 #MKDIR
     def mkdir(self, name):
         return self._new_folder(self.current_path[-1][1], name)
-        
+
 #CAT
     def cat(self, name):
         if name in self.current_files:
