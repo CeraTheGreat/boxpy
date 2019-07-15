@@ -65,8 +65,8 @@ class BoxRepl(Cmd):
             login - login to your box account
 
         SYNOPSIS :
-            login
-            login [-A auth_code]
+            login [options]
+            login [-A auth_code] [options]
 
         DESCRIPTION :
             If not supplied with an <auth_code>, this will open up a browser
@@ -77,13 +77,16 @@ class BoxRepl(Cmd):
             this will open a browser window and instad simply log the user in.
 
         OPTIONS:
-            NONE
+            -t  Use the tokens generated from the last sessoin. Refresh tokens
+                last for 60 days so this should be valid for just as long.
         """
         arg,argkv = parse_args(args)
 
         try:
             if '-A' in argkv:
                 core.login(id=argkv['-A'])
+            elif '-t' in arg:
+                core.login(token=True)
             else:
                 core.login()
 
@@ -451,7 +454,6 @@ class BoxRepl(Cmd):
         print('')
 #QUIT
     def do_quit(self, args):
-        core.logout()
         raise SystemExit
 
 if __name__ == '__main__':

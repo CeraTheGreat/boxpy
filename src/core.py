@@ -97,6 +97,14 @@ class BoxCore:
         self.current_folders[new_folder.name] = new_folder.id
         return new_folder
 
+    def _token_login(self):
+        """
+        Token login, uses tokens saved between sessions
+        """
+
+        self.authenticator.token_login()
+        self.client = Client(self.authenticator.oauth)
+        self._get_children(self.current_path[-1][1])
 
     def _dev_login(self, token):
         """
@@ -130,9 +138,11 @@ class BoxCore:
                               #REPL commands#
 #------------------------------------------------------------------------------#
 #LOGIN
-    def login(self, id=None):
+    def login(self, id=None, token=False):
         if id is not None:
             self._dev_login(id)
+        elif token:
+            self._token_login()
         else:
             self._user_login()
 

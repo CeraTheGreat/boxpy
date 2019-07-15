@@ -25,10 +25,33 @@ class BoxOAuth:
         self.token_dict = {'access_token':'','refresh_token':''}
 
     def _store_tokens(self, access_token, refresh_token):
+        #write tokens to cred
+        token_json = open('cred/tokens.json','w+')
         self.token_dict['access_token'],self.token_dict['refresh_token'] = access_token,refresh_token
+        json.dump(self.token_dict, token_json)
+        token_json.close()
 
     def logout(self):
         return self.oauth.revoke() 
+
+    def token_login(self):
+        """
+        Token login, uses tokens saved between sessions
+        """
+        with open('cred/tokens.json') as tokenfile:
+
+            token_json = json.load(tokenfile)
+
+            self.oauth = OAuth2(
+              client_id=self.client_id,
+              client_secret=self.client_secret,
+              access_token=token_json['access_token'],
+              refresh_token=['refresh_token'],
+              store_tokens=self._store_tokens
+            )
+
+            self.token_dict['access_token'] = token_json['access_token']
+            self.token_dict['refresh_token'] = token_json['refresh_token']
 
     def dev_login(self, token):
         """
