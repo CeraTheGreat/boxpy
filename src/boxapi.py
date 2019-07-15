@@ -79,6 +79,7 @@ class BoxRepl(Cmd):
         OPTIONS:
             -t  Use the tokens generated from the last sessoin. Refresh tokens
                 last for 60 days so this should be valid for just as long.
+                Logout wil invalidate these tokens.
         """
         arg,argkv = parse_args(args)
 
@@ -144,7 +145,7 @@ class BoxRepl(Cmd):
         OPTIONS:
             NONE
         """
-        print(core.tokens())
+        print(core.tokens()
         print('')
 
 #UID
@@ -464,9 +465,9 @@ if __name__ == '__main__':
 
 #OLD TEST CODE
 #auth = OAuth2(
-#    client_id='ba6xqqqso7wauppnvtixr258oemo1cnk',
-#    client_secret='jB1t76Q4WlnRL8ETYwI2gc2Doa90Rrkm',
-#    access_token='ilbWsFamFkv0MvC1YPhiMW60b3MkY7sM',
+#    client_id='',
+#    client_secret='',
+#    access_token='',
 #)
 #
 #client = Client(auth)

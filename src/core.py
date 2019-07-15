@@ -127,6 +127,17 @@ class BoxCore:
         self.client = Client(self.authenticator.oauth)
         self._get_children(self.current_path[-1][1])
 
+    #Get enterprise level templates
+    def _get_enterprise_templates(self):
+        pass
+        # TODO : 
+        #   Need to impliment metadata
+        #   Metadata needs several things:
+        #       >View it on the command line
+        #       >Map values for upload
+        #       >Store existing templates
+        #       >Create a template
+        #       >
 
 #------------------------------------------------------------------------------#
                          #Public helper functions#
