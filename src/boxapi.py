@@ -1,13 +1,13 @@
 from cmd import Cmd
 import re
-import src.core as core
+import src.core as Core
+import os
 
+#regex for matching arguments in an args string e.g. '-P ~/Documents/Notes/note.txt -r -m' -> [('-P', '~/Documents/Notes/note.txt')],['-r','-m']
+args_re = re.compile('((?:--|-)[\w\\\/\:\-]+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:[\w\\\/\.]+(?:-[\w\\\/\.\-\(\)]*)?))?)|((?:[\w\.\\\/\:\~\(\)\-]+)|(?:"[\w\.\\\/\:\~]+"))')
 
-args_re = re.compile('((?:--|-)[\w\\\/:-]+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:[\w\\\/\.]+(?:-[\w\\\/\.]*)?))?)|((?:[\w.\\\/:]+)|(?:"[\w.\\\/:]+"))')
-col = '|  '
-e_tab = '=--'
-c_tab = '+--'
-tree_buffer = [['' for x in range (512)] for y in range(2048)]
+#The core does the dirty work of connecting and keeping track of the state
+core = Core.BoxCore()
 
 def parse_args(args):
     """
@@ -43,6 +43,11 @@ def parse_args(args):
 
     return (single, pairs)
 
+#convert Xnix paths to your machine's path
+def fixpath(path):
+    return os.path.abspath(os.path.expanduser(path))
+
+
                                       #REPL#
 #------------------------------------------------------------------------------#
 class BoxRepl(Cmd):
@@ -50,7 +55,7 @@ class BoxRepl(Cmd):
     def __init__(self):
         super(BoxRepl, self).__init__()
 
-        self.core = core.BoxCore()
+
 
 
 #LOGIN
@@ -60,8 +65,8 @@ class BoxRepl(Cmd):
             login - login to your box account
 
         SYNOPSIS :
-            login
-            login [-A auth_code]
+            login [options]
+            login [-A auth_code] [options]
 
         DESCRIPTION :
             If not supplied with an <auth_code>, this will open up a browser
@@ -72,19 +77,24 @@ class BoxRepl(Cmd):
             this will open a browser window and instad simply log the user in.
 
         OPTIONS:
-            NONE
+            -t  Use the tokens generated from the last sessoin. Refresh tokens
+                last for 60 days so this should be valid for just as long.
         """
         arg,argkv = parse_args(args)
 
         try:
-
             if '-A' in argkv:
-                self.core.login(id=argkv['-A'])
+                core.login(id=argkv['-A'])
+            elif '-t' in arg:
+                core.login(token=True)
             else:
-                self.core.login()
+                core.login()
 
         except Exception as e:
-            print("Could not login:",e)
+            print(e)
+            print("Could not login, token expired or invalid")
+
+        print('')
 
 #LOGOUT
     def do_logout(self, args):
@@ -107,16 +117,17 @@ class BoxRepl(Cmd):
             NONE
         """
 
-        if self.core.is_logged_in():
+        if core.is_logged_in():
             try:
-                user = self.core.uid()
-                response = self.core.logout()
-                print(response)
+                user = core.uid()
+                response = core.logout()
                 print ("logging out {}...".format(user))
             except Exception as e:
-                print("Exception : \n", e)
+                print(e)
         else:
             print("user already logged out")
+
+        print('')
 
 #TOKENS
     def do_tokens(self, args):
@@ -133,7 +144,8 @@ class BoxRepl(Cmd):
         OPTIONS:
             NONE
         """
-        print(self.core.tokens())
+        print(core.tokens())
+        print('')
 
 #UID
     def do_uid(self, args):
@@ -150,14 +162,16 @@ class BoxRepl(Cmd):
         OPTIONS:
             NONE
         """
-        if self.core.is_logged_in():
+        if core.is_logged_in():
             try:
-                user = self.core.uid()
+                user = core.uid()
                 print(user)
             except Exception as e:
-                print("Error getting client: \n",e)
+                print(e)
         else:
             print("not currently logged in")
+
+        print('')
 
 #ITEMINFO
     def do_iteminfo(self, args):
@@ -190,23 +204,25 @@ class BoxRepl(Cmd):
 
             -v  Show version
         """
-        arg,argkp = parse_args(args)
+        arg,argkv = parse_args(args)
         result = None
 
         if len(arg) == 0:
-            print("filename must be supplied")
+            print("filename must be supplied\n")
+            return
         else:
             try:
-                result = self.core.iteminfo(arg[0])
+                result = core.iteminfo(arg[0])
             except Exception as e:
-                print("error: {}".format(e))
+                print("error: {}\n".format(e))
                 return
-        
+
 
         printstr = "<Box {type} - {id} ({name})>".format(type=result.type.capitalize(),
                                                          id=result.id,
                                                          name=result.name)
 
+        #print info specified by the flags
         if '-d' in arg or '-V' in arg:
             printstr += "\n    :description: {}".format(result.description)
         if ('-h' in arg or '-V' in arg) and result.type=='file':
@@ -225,6 +241,7 @@ class BoxRepl(Cmd):
             printstr += "\n    :status: {}".format(result.file_version)
 
         print(printstr)
+        print('')
 
 #DOWNLOAD
     def do_download(self, args):
@@ -241,37 +258,202 @@ class BoxRepl(Cmd):
 
         OPTIONS:
         """
-        arg,argkp = parse_args(args)
+        arg,argkv = parse_args(args)
         result = None
 
         if len(arg) < 2:
-            print('must specify a filename and a download location')
+            print('must specify a filename and a download location\n')
             return
 
         try:
-            output_file = open(arg[1],'wb')
-            result = self.core.download(arg[0], output_file)
+            output_file = open(fixpath(arg[1]),'wb')
+            result = core.download(arg[0], output_file)
             output_file.close()
         except Exception as e:
             print(e)
+
+        print('')
+#UPLOAD
+    def do_upload(self, args):
+        """
+        NAME:
+            upload - upload content
+
+        SYNOPSIS:
+            upload [local_resource_path] [filename]
+
+        DESCRIPTION:
+            Uploads a file from your machine to the Box repository.
+
+        OPTIONS:
+        """
+        arg,argkv = parse_args(args)
+        result = None
+
+        if len(arg) < 2:
+            print('must specify a source and filename\n')
             return
-            
+
+        try:
+            source_file = open(fixpath(arg[0]),'rb')
+            result = core.upload(arg[1], source_file)
+            source_file.close()
+        except Exception as e:
+            print(e)
+
+        print('')
 #LS
     def do_ls(self, args):
-        arg,argkp = parse_args(args)
+        """
+        NAME:
+            ls - list items in current directory
+
+        SYNOPSIS:
+            ls [options]
+
+        DESCRIPTION:
+            Lists all files available to you in your current directory
+
+        OPTIONS:
+            -f  Force the cache to update. Boxpy caches files after every
+                traversal. If you think that files may have changed while you
+                were in the directory, you can use this flag to ensure that the
+                most recently available files are listed.
+        """
+        arg,argkv = parse_args(args)
         if '-f' in arg:
-            print(' | '.join(self.core.ls(force=True)))
+            print(' | '.join(core.ls(force=True)))
         else:
-            print(' | '.join(self.core.ls()))
-#CD 
+            print(' | '.join(core.ls()))
+
+        print('')
+#PWD
+    def do_pwd(self, args):
+        """
+        NAME:
+            pwd - show your present working directory
+
+        SYNOPSIS:
+            pwd
+
+        DESCRIPTION:
+            Shows your present working directory
+
+        OPTIONS:
+        """
+
+        arg,argkv = parse_args(args)
+
+        try:
+            print(core.pwd())
+        except Exception as e:
+            print(e)
+        print('')
+
+#CD
     def do_cd(self, args):
-        arg,argkp = parse_args(args)
-        
-        self.core.cd(arg[0])
-        pass
+        """
+        NAME:
+            cd - change directory
+
+        SYNOPSIS:
+            cd [dir]
+
+        DESCRIPTION:
+            Changes your present working directory to the one specified
+
+        OPTIONS:
+        """
+
+        arg,argkv = parse_args(args)
+
+        try:
+            core.cd(arg[0])
+        except Exception as e:
+            print(e)
+        print('')
+
+#MKDIR
+    def do_mkdir(self, args):
+        """
+        NAME:
+            mkdir - make a subdirectory
+
+        SYNOPSIS:
+            mkdir [dir]
+
+        DESCRIPTION:
+            Create a subdirectory in your present working directory
+
+        OPTIONS:
+        """
+
+        arg, argkv = parse_args(args)
+
+        try:
+            core.mkdir(arg[0])
+        except Exception as e:
+            print(e)
+        print('')
+
+
+#RM
+    def do_rm(self, args):
+        """
+        NAME:
+            rm - remove an item from the Box repository
+
+        SYNOPSIS:
+            rm [item] [options]
+
+        DESCRIPTION:
+            Removes an item (folder or file) from the Box repository.
+
+        OPTIONS:
+            -r  Recursively remove items from a directory. Required if a
+                directory is not empty.
+        """
+
+        arg,argkv = parse_args(args)
+        success = False
+        name = ''
+        if '-r' in arg:
+            name = arg[0]
+            success = core.rm(name,recursive=True)
+        elif '-r' in argkv:
+            name = argkv['-r']
+            success = core.rm(name,recursive=True)
+        elif len(arg) < 1:
+            print("no item specified\n")
+            return
+        else:
+            name = arg[0]
+            success = core.rm(name)
+
+        if not success:
+            print("could not delete {}".format(name))
+
+        print('')
+#CAT
+    def do_cat(self, args):
+        """
+        NAME:
+            cat - print out the UTF-8 representation of the file specified
+
+        SYNOPSIS:
+            cat [file]
+
+        DESCRIPTION:
+            Prints the file specified. Uses UTF-8 encoding.
+
+        OPTIONS:
+        """
+        arg,argkv = parse_args(args)
+
+        print(core.cat(arg[0]))
+        print('')
 #QUIT
-    def do_quit(self, *args):
-        self.core.logout()
+    def do_quit(self, args):
         raise SystemExit
 
 if __name__ == '__main__':
