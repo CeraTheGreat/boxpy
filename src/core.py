@@ -97,7 +97,7 @@ class BoxCore:
         self.current_folders[new_folder.name] = new_folder.id
         return new_folder
 
-    #Log dev user in with token
+
     def _dev_login(self, token):
         """
         Developer login, must use developer token generated from the

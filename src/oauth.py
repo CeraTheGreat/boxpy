@@ -28,8 +28,7 @@ class BoxOAuth:
         self.token_dict['access_token'],self.token_dict['refresh_token'] = access_token,refresh_token
 
     def logout(self):
-        data = {"client_id":self.client_id,"client_secret":self.client_secret,"token":self.token_dict['refresh_token'],"token":self.token_dict['access_token']}
-        return requests.post('https://api.box.com/oauth2/revoke', json=data)
+        return self.oauth.revoke() 
 
     def dev_login(self, token):
         """
