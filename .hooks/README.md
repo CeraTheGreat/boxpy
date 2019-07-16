@@ -5,6 +5,8 @@ To make ctags work with vim, first install [`pathogen.vim`](https://github.com/t
 Then install [`fugitive.vim`](https://github.com/tpope/vim-fugitive).
 
 ## Usage
+To generate tags, use `git ctags`.
+
 To follow tags in vim, use `<C-]>`.
 
 To backtrack tags in vim, use `<C-t>`.
