@@ -1,2 +1,4 @@
 #!/bin/sh
-ctags -f "../.tags" -R ".."
+pushd .. > /dev/null
+ctags -f ".tags" -R
+popd > /dev/null

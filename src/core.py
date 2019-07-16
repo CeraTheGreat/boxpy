@@ -16,12 +16,16 @@ class BoxCore:
 
         self.current_files = {}
         self.current_folders = {}
+        self.current_templates = {}
 
         self.client = None
 
         self.authenticator = oauth.BoxOAuth()
                             #Private Functions#
 #------------------------------------------------------------------------------#
+    def _init_filestruct(self):
+        self._get_children(self.current_path[-1][1])
+        self._get_enterprise_templates()
 
     def _get_children(self, folder_id):
         """ :param folder_id: the id of the folder in the box repository
@@ -106,7 +110,7 @@ class BoxCore:
 
         self.authenticator.token_login()
         self.client = Client(self.authenticator.oauth)
-        self._get_children(self.current_path[-1][1])
+        self._init_filestruct()
 
     def _dev_login(self, token):
         """
@@ -118,7 +122,7 @@ class BoxCore:
         """
         self.authenticator.dev_login(token)
         self.client = Client(self.authenticator.oauth)
-        self._get_children(self.current_path[-1][1])
+        self._init_filestruct()
 
     #Log a regular user in
     def _user_login(self):
@@ -127,11 +131,15 @@ class BoxCore:
         """
         self.authenticator.user_login()
         self.client = Client(self.authenticator.oauth)
-        self._get_children(self.current_path[-1][1])
+        self._init_filestruct()
 
     #Get enterprise level templates
     def _get_enterprise_templates(self):
-        pass
+        templates = self.client.get_metadata_templates()
+        for template in templates:
+            self.current_templates[template.id] = template
+        return templates
+
         # TODO : 
         #   Need to impliment metadata
         #   Metadata needs several things:
@@ -141,6 +149,9 @@ class BoxCore:
         #       >Create a template
         #       >
 
+    
+    def _get_enterprise_templates_cached(self):
+        return self.current_templates
 #------------------------------------------------------------------------------#
                          #Public helper functions#
 #------------------------------------------------------------------------------#
@@ -166,6 +177,19 @@ class BoxCore:
 #TOKENS
     def tokens(self):
         return(self.authenticator.token_dict)
+
+#TEMPLATES
+    def templates(self):
+        return(self._get_enterprise_templates_cached())
+
+#TEMPLATE
+    def template(self, selector, method):
+        if method == 'id':
+            return self.current_templates[selector]
+        elif method == 'index':
+            return [self.current_templates[x] for x in self.current_templates][selector]
+        else:
+            raise Exception("method {} not recognized".format(method))
 
 #UID
     def uid(self):

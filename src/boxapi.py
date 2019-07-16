@@ -1,3 +1,5 @@
+import pprint
+import json
 from cmd import Cmd
 import re
 import src.core as Core
@@ -145,7 +147,84 @@ class BoxRepl(Cmd):
         OPTIONS:
             NONE
         """
-        print(core.tokens()
+        print(core.tokens())
+        print('')
+
+#TEMPLATES
+    def do_templates(self, args):
+        """
+        NAME:
+            templates - the current enterprise level templates
+
+        SYNOPSIS:
+            templates
+
+        DESCRIPTION:
+            Shows the current templates by name and id
+
+        OPTIONS:
+            NONE
+        """
+
+        templates = core.templates()
+        for template in templates:
+            print("{} {}".format(templates[template], templates[template].displayName))
+        print('')
+
+#TEMPLATEINFO
+    def do_template(self, args):
+        """ 
+        NAME:
+            template - info about a template
+
+        SYNOPSIS:
+            template [template_index] [options]
+            template -d [template_id] [options]
+            template -i [template_index] [options]
+
+        DESCRIPTION:
+            Shows the template info for the specified template
+
+        OPTIONS:
+            -d  template_id, gets template by the very long id
+                shown in the 'templates' command.
+
+            -i  index, gets template by the index shown in the
+                'templates' command.
+            
+            -v  show all information
+        """
+        
+        arg,argkv = parse_args(args)
+
+        template = None
+
+        if '-d' in argkv:
+            template = core.template(argkv['-d'], method='id')
+        elif '-i' in argkv and argkv['-i'].isdigit():
+            template = core.template(int(argkv['-i']), method='index')
+        elif len(arg) > 0 and arg[0].isdigit():
+            template = core.template(int(arg[0]), method='index')
+        else:
+            print("unrecognized arguments")
+            print('')
+            return
+
+        print("{} {}".format(template, template.displayName))
+
+        if '-v' in arg:
+            print(json.dumps(template.fields, indent=4)) 
+        else:
+            string = json.dumps(template.fields, indent=4)
+            for line in string.splitlines():
+                if  line.lstrip().startswith('"') and \
+                not line.lstrip().startswith('"key') and \
+                not line.lstrip().startswith('"type') and \
+                not line.lstrip().startswith('"displayName') and \
+                not line.lstrip().startswith('"options'):
+                    continue
+                else:
+                    print(line)
         print('')
 
 #UID
