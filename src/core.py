@@ -82,7 +82,9 @@ class BoxCore:
         return self.client.file(str(file_id)).content()
 
     def _upload_file(self, dest_folder_id, file_name, file_stream):
-        new_file = self.client.folder(str(dest_folder_id)).upload_stream(file_stream, file_name)
+        new_file = self.client.folder(str(dest_folder_id)).upload_stream( \
+                                                           file_stream,
+                                                           file_name)
         self.current_files[new_file.name] = new_file.id
         return new_file
 
@@ -195,18 +197,22 @@ class BoxCore:
 #DOWNLOAD
     def download(self, filename, dest_stream):
         if filename in self.current_files:
-            return self._download_file_to_stream(self.current_files[filename], dest_stream)
+            return self._download_file_to_stream(self.current_files[filename],
+                                                 dest_stream)
         else:
             raise Exception("file not found")
 
 #UPLOAD
     def upload(self, filename, source_stream):
-        return self._upload_file(self.current_path[-1][1], filename, source_stream)
+        return self._upload_file(self.current_path[-1][1], 
+                                 filename, 
+                                 source_stream)
 
 #RM
     def rm(self, name, recursive=False):
         if name in self.current_folders:
-            succ = self._delete_folder(self.current_folders[name], recursive=recursive)
+            succ = self._delete_folder(self.current_folders[name], 
+                                       recursive=recursive)
             if succ:
                 del self.current_folders[name]
             return succ
