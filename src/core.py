@@ -22,11 +22,14 @@ class BoxCore:
         self.client = None
 
         self.authenticator = oauth.BoxOAuth()
-                            #Private Functions#
-#------------------------------------------------------------------------------#
+
+                            
     def _init_filestruct(self):
         self._get_children(self.current_path[-1][1])
         self._get_enterprise_templates()
+
+                            #Private Functions#
+#------------------------------------------------------------------------------#
 
     def _get_children(self, folder_id):
         """ :param folder_id: the id of the folder in the box repository
@@ -47,6 +50,12 @@ class BoxCore:
                     self.current_files[child.name] = child.id
 
         return folder_info.item_collection['entries']
+
+    def _get_folders_cached(self):
+        return [x for x in self.current_folders]
+
+    def _get_files_cached(self):
+        return [x for x in self.current_files]
 
     def _get_children_cached(self):
         """ :param folder_id: the id of the folder in the box repository
@@ -158,7 +167,7 @@ class BoxCore:
     def _get_enterprise_templates(self):
         templates = self.client.get_metadata_templates()
         for template in templates:
-            self.enterprise_templates[template.id] = template
+            self.enterprise_templates[template.displayName] = template
         return templates
 
         # TODO : 
@@ -204,13 +213,8 @@ class BoxCore:
         return(self._get_enterprise_templates_cached())
 
 #TEMPLATE
-    def template(self, selector, method):
-        if method == 'id':
-            return self.enterprise_templates[selector]
-        elif method == 'index':
-            return [self.enterprise_templates[x] for x in self.enterprise_templates][selector]
-        else:
-            raise Exception("method {} not recognized".format(method))
+    def template(self, name):
+        return self.enterprise_templates[name]
 
 #METADATA
     def metadata(self, name):

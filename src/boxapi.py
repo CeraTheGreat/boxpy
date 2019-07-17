@@ -179,17 +179,13 @@ class BoxRepl(Cmd):
 
         SYNOPSIS:
             template [template_index] [options]
-            template -d [template_id] [options]
-            template -i [template_index] [options]
+            template -n [template_name] [options]
 
         DESCRIPTION:
             Shows the template info for the specified template
 
         OPTIONS:
-            -d  template_id, gets template by the very long id
-                shown in the 'templates' command.
-
-            -i  index, gets template by the index shown in the
+            -n  template_name, gets template by the name shown in the
                 'templates' command.
             
             -v  show all information
@@ -200,12 +196,10 @@ class BoxRepl(Cmd):
         template = None
 
         try:
-            if '-d' in argkv:
-                template = core.template(argkv['-d'], method='id')
-            elif '-i' in argkv and argkv['-i'].isdigit():
-                template = core.template(int(argkv['-i']), method='index')
-            elif len(arg) > 0 and arg[0].isdigit():
-                template = core.template(int(arg[0]), method='index')
+            if '-n' in argkv: 
+                template = core.template(argkv['-n'])
+            elif len(arg) > 0: 
+                template = core.template(arg[0])
             else:
                 print("unrecognized arguments")
                 print('')
@@ -231,6 +225,10 @@ class BoxRepl(Cmd):
                 else:
                     print(line)
         print('')
+
+#TEMPLATE INFO AUTOCOMPLTE
+    def complete_template(self, text, line, begidx, endidx):
+        return [x for x in core.templates() if x.startswith(text)]
 
 #METADATA
     def do_meta(self, args):
@@ -266,6 +264,7 @@ class BoxRepl(Cmd):
 
         #format data for printing
         for instance in data:
+            print("template: {}".format(instance['$template']))
             if '-v' in arg:
                 print(json.dumps(instance, indent=4))
             else:
@@ -274,9 +273,16 @@ class BoxRepl(Cmd):
                     if line.lstrip().startswith('"$'):
                         continue
                     else:
-                        print(line)
+                        print("    {}".format(line))
+                print('')
 
         print('')
+
+
+#METADATA AUTOCOMPLTE
+    def complete_meta(self, text, line, begidx, endidx):
+        return [x for x in core.ls() if x.startswith(text)]
+
 
 #UID
     def do_uid(self, args):
@@ -374,6 +380,10 @@ class BoxRepl(Cmd):
         print(printstr)
         print('')
 
+#ITEMINFO AUTOCOMPLTE
+    def complete_iteminfo(self, text, line, begidx, endidx):
+        return [x for x in core.ls() if x.startswith(text)]
+
 #DOWNLOAD
     def do_download(self, args):
         """
@@ -402,6 +412,10 @@ class BoxRepl(Cmd):
             output_file.close()
         except Exception as e:
             print(e)
+
+#DOWNLOAD AUTOCOMPLTE
+    def complete_download(self, text, line, begidx, endidx):
+        return [x for x in core._get_files_cached() if x.startswith(text)]
 
         print('')
 #UPLOAD
@@ -507,6 +521,10 @@ class BoxRepl(Cmd):
             print(e)
         print('')
 
+#CD AUTOCOMPLTE
+    def complete_cd(self, text, line, begidx, endidx):
+        return [x for x in core._get_folders_cached() if x.startswith(text)]
+
 #MKDIR
     def do_mkdir(self, args):
         """
@@ -571,6 +589,11 @@ class BoxRepl(Cmd):
             print("could not delete {}".format(name))
 
         print('')
+
+#RM AUTOCOMPLTE
+    def complete_rm(self, text, line, begidx, endidx):
+        return [x for x in core.ls() if x.startswith(text)]
+
 #CAT
     def do_cat(self, args):
         """
@@ -593,6 +616,11 @@ class BoxRepl(Cmd):
             print(e)
 
         print('')
+
+#CAT AUTOCOMPLTE
+    def complete_cat(self, text, line, begidx, endidx):
+        return [x for x in core._get_files_cached() if x.startswith(text)]
+
 #QUIT
     def do_quit(self, args):
         raise SystemExit
