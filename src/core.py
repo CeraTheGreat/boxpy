@@ -17,6 +17,7 @@ class BoxCore:
         self.current_files = {}
         self.current_folders = {}
         self.current_templates = {}
+        self.enterprise_templates = {}
 
         self.client = None
 
@@ -56,11 +57,9 @@ class BoxCore:
         return [x for x in self.current_folders]+[x for x in self.current_files]
 
     #item_id: string, type: ['unknown','folder','file']
-    def _get_iteminfo(self, name, type='unknown'):
-        """ :param item_id: the id of the item in the box repository
+    def _get_iteminfo(self, name):
+        """ :param name: the name of the item in the box repository
             :param type: the type of the item - 'file', 'folder', 'unknown'
-            :type item_id: string
-            :type type: string
             :return: the full info on the specified item
             :rtype: json object
         """
@@ -71,6 +70,19 @@ class BoxCore:
         else:
             raise Exception("file not found")
 
+    
+    def _get_metadata(self, name):
+        """ :param item_id: the id of the item in the box repository
+            :param type: the type of the item - 'file', 'folder', 'unknown'
+            :return: the full info on the specified item
+            :rtype: json object
+        """
+        if name in self.current_files:
+            return self._get_file_meta(self.current_files[name])
+        elif name in self.current_folders:
+            return self._get_folder_meta(self.current_folders[name])
+        else:
+            raise Exception("file not found")
     #Get folder by id
     def _get_folder(self, folder_id):
         return self.client.folder(str(folder_id)).get()
@@ -78,6 +90,15 @@ class BoxCore:
     #Get file by id
     def _get_file(self, file_id):
         return self.client.file(str(file_id)).get()
+    
+    #Get flie metadata
+    def _get_file_meta(self, file_id):
+        return self.client.file(str(file_id)).get_all_metadata()
+
+    #Get folder metadata
+    def _get_folder_meta(self, folder_id):
+        return self.client.folder(str(folder_id)).get_all_metadata()
+    
 
     def _download_file_to_stream(self, file_id, dest_stream):
         return self.client.file(str(file_id)).download_to(dest_stream)
@@ -137,7 +158,7 @@ class BoxCore:
     def _get_enterprise_templates(self):
         templates = self.client.get_metadata_templates()
         for template in templates:
-            self.current_templates[template.id] = template
+            self.enterprise_templates[template.id] = template
         return templates
 
         # TODO : 
@@ -151,7 +172,7 @@ class BoxCore:
 
     
     def _get_enterprise_templates_cached(self):
-        return self.current_templates
+        return self.enterprise_templates
 #------------------------------------------------------------------------------#
                          #Public helper functions#
 #------------------------------------------------------------------------------#
@@ -185,11 +206,15 @@ class BoxCore:
 #TEMPLATE
     def template(self, selector, method):
         if method == 'id':
-            return self.current_templates[selector]
+            return self.enterprise_templates[selector]
         elif method == 'index':
-            return [self.current_templates[x] for x in self.current_templates][selector]
+            return [self.enterprise_templates[x] for x in self.enterprise_templates][selector]
         else:
             raise Exception("method {} not recognized".format(method))
+
+#METADATA
+    def metadata(self, name):
+        return self._get_metadata(name)
 
 #UID
     def uid(self):

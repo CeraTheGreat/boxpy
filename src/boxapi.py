@@ -199,14 +199,19 @@ class BoxRepl(Cmd):
 
         template = None
 
-        if '-d' in argkv:
-            template = core.template(argkv['-d'], method='id')
-        elif '-i' in argkv and argkv['-i'].isdigit():
-            template = core.template(int(argkv['-i']), method='index')
-        elif len(arg) > 0 and arg[0].isdigit():
-            template = core.template(int(arg[0]), method='index')
-        else:
-            print("unrecognized arguments")
+        try:
+            if '-d' in argkv:
+                template = core.template(argkv['-d'], method='id')
+            elif '-i' in argkv and argkv['-i'].isdigit():
+                template = core.template(int(argkv['-i']), method='index')
+            elif len(arg) > 0 and arg[0].isdigit():
+                template = core.template(int(arg[0]), method='index')
+            else:
+                print("unrecognized arguments")
+                print('')
+                return
+        except Exception as e:
+            print(e)
             print('')
             return
 
@@ -225,6 +230,52 @@ class BoxRepl(Cmd):
                     continue
                 else:
                     print(line)
+        print('')
+
+#METADATA
+    def do_meta(self, args):
+
+        """ 
+        NAME:
+            meta - the metadata on a specified file
+
+        SYNOPSIS:
+            meta [item_name] [options]
+
+        DESCRIPTION:
+            Shows the metadata of a file or folder specified by the user.
+
+        OPTIONS:
+            -v  show all information
+        """
+        arg,argkv = parse_args(args)
+
+        data = None
+
+        try:
+            if len(arg) > 0:
+                data = core.metadata(arg[0])
+            else:
+                print("name must be supplied")
+                print('')
+                return
+        except Exception as e:
+                print(e)
+                print('')
+                return
+
+        #format data for printing
+        for instance in data:
+            if '-v' in arg:
+                print(json.dumps(instance, indent=4))
+            else:
+                string = json.dumps(instance, indent=4)
+                for line in string.splitlines():
+                    if line.lstrip().startswith('"$'):
+                        continue
+                    else:
+                        print(line)
+
         print('')
 
 #UID
@@ -311,8 +362,8 @@ class BoxRepl(Cmd):
             printstr += "\n    :owner: {}".format(result.owned_by)
         if ('-p' in arg or '-V' in arg) and result.parent is not None:
             printstr += "\n    :parent: <Box {type} - {id} ({name})>".format(type=result.parent.type.capitalize(),
-                                                                          id=result.parent.id,
-                                                                          name=result.parent.name)
+                                                                             id=result.parent.id,
+                                                                             name=result.parent.name)
         if '-s' in arg or '-V' in arg:
             printstr += "\n    :size: {}".format(result.size)
         if '-t' in arg or '-V' in arg:
@@ -401,10 +452,13 @@ class BoxRepl(Cmd):
                 most recently available files are listed.
         """
         arg,argkv = parse_args(args)
-        if '-f' in arg:
-            print(' | '.join(core.ls(force=True)))
-        else:
-            print(' | '.join(core.ls()))
+        try:
+            if '-f' in arg:
+                print(' | '.join(core.ls(force=True)))
+            else:
+                print(' | '.join(core.ls()))
+        except Exception as e:
+            print(e)
 
         print('')
 #PWD
@@ -497,18 +551,21 @@ class BoxRepl(Cmd):
         arg,argkv = parse_args(args)
         success = False
         name = ''
-        if '-r' in arg:
-            name = arg[0]
-            success = core.rm(name,recursive=True)
-        elif '-r' in argkv:
-            name = argkv['-r']
-            success = core.rm(name,recursive=True)
-        elif len(arg) < 1:
-            print("no item specified\n")
-            return
-        else:
-            name = arg[0]
-            success = core.rm(name)
+        try:
+            if '-r' in arg:
+                name = arg[0]
+                success = core.rm(name,recursive=True)
+            elif '-r' in argkv:
+                name = argkv['-r']
+                success = core.rm(name,recursive=True)
+            elif len(arg) < 1:
+                print("no item specified\n")
+                return
+            else:
+                name = arg[0]
+                success = core.rm(name)
+        except Exception as e:
+            print(e)
 
         if not success:
             print("could not delete {}".format(name))
@@ -530,7 +587,11 @@ class BoxRepl(Cmd):
         """
         arg,argkv = parse_args(args)
 
-        print(core.cat(arg[0]))
+        try:
+            print(core.cat(arg[0]))
+        except Exception as e:
+            print(e)
+
         print('')
 #QUIT
     def do_quit(self, args):
