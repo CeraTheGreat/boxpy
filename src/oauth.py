@@ -8,6 +8,7 @@ from urllib.parse import parse_qs
 
 auth_code = None
 
+
 class BoxOAuth:
     def __init__(self):
 
@@ -39,10 +40,8 @@ class BoxOAuth:
     def logout(self):
         return self.oauth.revoke() 
 
+    #Token login, uses tokens saved between sessions
     def token_login(self):
-        """
-        Token login, uses tokens saved between sessions
-        """
         with open('cred/tokens.json') as tokenfile:
 
             token_json = json.load(tokenfile)
@@ -58,24 +57,21 @@ class BoxOAuth:
             self.token_dict['access_token'] = token_json['access_token']
             self.token_dict['refresh_token'] = token_json['refresh_token']
 
+    #Developer login, must use developer token generated from the
     def dev_login(self, token):
-        """
-        Developer login, must use developer token generated from the
-        Box application administration page.
+        #Box application administration page.
 
-            :param token: the developer token
-            :type token: string
-        """
+        #    :param token: the developer token
+        #    :type token: string
+
         self.oauth = OAuth2(
             client_id=self.client_id,
             client_secret=self.client_secret,
             access_token=token
         )
 
+    # User login, uses OAuth2
     def user_login(self):
-        """
-        User login, uses OAuth2
-        """
         #auth_code is a global variable set by the server when it exits
         global auth_code
 
@@ -116,34 +112,36 @@ class BoxOAuth:
         #do authentication
         self.oauth.authenticate(auth_code['code'])
 
+
 class StoppableHttpServer (HTTPServer):
-    """http server that reacts to self.stop flag"""
+    #http server that reacts to self.stop flag
     stop = False
 
     def serve_forever (self):
-        """Handle one request at a time until stopped."""
+        #Handle one request at a time until stopped.
         while not self.stop:
             self.handle_request()
 
+
 class HTTPLoopbackHandler(BaseHTTPRequestHandler):
-    """http handler that reacts to self.stop flag"""
+    #http handler that reacts to self.stop flag
     stop = False
     allow_reuse_address = True
 
     def serve_forever(self):
-        """Handle one request at a time until stopped."""
+        #Handle one request at a time until stopped.
         while not self.stop:
             self.handle_request()
 
     def force_stop(self):
-        """forcibly close the server"""
+        #forcibly close the server
         self.server.server_close()
         self.stop = True
         self.server.stop = True
         self.server.serve_forever()
 
     def do_GET(self):
-        """GET is the ONLY http verb that we support"""
+        #GET is the ONLY http verb that we support
         global auth_code
 
         self.send_response(200)

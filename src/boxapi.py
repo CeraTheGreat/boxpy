@@ -55,7 +55,6 @@ def parse_args(args):
             #we have a single
             else:
                 single.append(t)
-
     return (single, pairs)
 
 #convert Xnix paths to your machine's path
@@ -69,9 +68,6 @@ class BoxRepl(Cmd):
 
     def __init__(self):
         super(BoxRepl, self).__init__()
-
-
-
 
 #LOGIN
     def do_login(self, args):
@@ -98,17 +94,26 @@ class BoxRepl(Cmd):
         """
         arg,argkv = parse_args(args)
 
-        try:
-            if '-A' in argkv:
-                core.login(id=argkv['-A'])
-            elif '-t' in arg:
-                core.login(token=True)
-            else:
-                core.login()
 
-        except Exception as e:
-            print(e)
-            print("Could not login, token expired or invalid")
+        if __debug__:
+                if '-A' in argkv:
+                    core.login(id=argkv['-A'])
+                elif '-t' in arg:
+                    core.login(token=True)
+                else:
+                    core.login()
+            
+        else:
+            try:
+                if '-A' in argkv:
+                    core.login(id=argkv['-A'])
+                elif '-t' in arg:
+                    core.login(token=True)
+                else:
+                    core.login()
+            except Exception as e:
+                print(e)
+                print("Could not login, token expired or invalid")
 
         
 
@@ -132,17 +137,25 @@ class BoxRepl(Cmd):
         OPTIONS:
             NONE
         """
-
-        if core.is_logged_in():
-            try:
+        
+        if __debug__:
+            if core.is_logged_in():
                 user = core.uid()
                 response = core.logout()
                 print ("logging out {}...".format(user))
-            except Exception as e:
-                print(e)
+            else:
+                print("user already logged out")
         else:
-            print("user already logged out")
-        
+            if core.is_logged_in():
+                try:
+                    user = core.uid()
+                    response = core.logout()
+                    print ("logging out {}...".format(user))
+                except Exception as e:
+                    print(e)
+            else:
+                print("user already logged out")
+            
 
 #TOKENS
     def do_tokens(self, args):
@@ -206,19 +219,26 @@ class BoxRepl(Cmd):
         arg,argkv = parse_args(args)
         template = None
 
-        try:
+        if __debug__:
             if '-n' in argkv: 
                 template = core.template(argkv['-n'])
             elif len(arg) > 0: 
                 template = core.template(arg[0])
             else:
                 print("unrecognized arguments")
-                
                 return
-        except Exception as e:
-            print(e)
-            
-            return
+        else:
+            try:
+                if '-n' in argkv: 
+                    template = core.template(argkv['-n'])
+                elif len(arg) > 0: 
+                    template = core.template(arg[0])
+                else:
+                    print("unrecognized arguments")
+                    return
+            except Exception as e:
+                print(e)
+                return
 
         print("{} {}".format(template, template.displayName))
 
@@ -260,17 +280,22 @@ class BoxRepl(Cmd):
         arg,argkv = parse_args(args)
         data = None
 
-        try:
+        if __debug__:
             if len(arg) > 0:
                 data = core.metadata(arg[0])
             else:
                 print("name must be supplied")
-                
                 return
-        except Exception as e:
-                print(e)
-                
-                return
+        else:
+            try:
+                if len(arg) > 0:
+                    data = core.metadata(arg[0])
+                else:
+                    print("name must be supplied")
+                    return
+            except Exception as e:
+                    print(e)
+                    return
 
         #format data for printing
         for instance in data:
@@ -310,14 +335,22 @@ class BoxRepl(Cmd):
         OPTIONS:
             NONE
         """
-        if core.is_logged_in():
-            try:
+
+        if __debug__:
+            if core.is_logged_in():
                 user = core.uid()
                 print(user)
-            except Exception as e:
-                print(e)
+            else:
+                print("not currently logged in")
         else:
-            print("not currently logged in")
+            if core.is_logged_in():
+                try:
+                    user = core.uid()
+                    print(user)
+                except Exception as e:
+                    print(e)
+            else:
+                print("not currently logged in")
         
 
 #ITEMINFO
@@ -358,13 +391,15 @@ class BoxRepl(Cmd):
             print("filename must be supplied\n")
             return
         else:
-            try:
-                result = core.iteminfo(arg[0])
-            except Exception as e:
-                print(e)
-                
-                return
 
+            if __debug__:
+                result = core.iteminfo(arg[0])
+            else:
+                try:
+                    result = core.iteminfo(arg[0])
+                except Exception as e:
+                    print(e)
+                    return
 
         printstr = "<Box {type} - {id} ({name})>".format(type=result.type.capitalize(),
                                                          id=result.id,
@@ -415,21 +450,24 @@ class BoxRepl(Cmd):
 
         if len(arg) < 2:
             print('must specify a filename and a download location\n')
-            
             return
 
-        try:
+        if __debug__:
             output_file = open(fixpath(arg[1]),'wb')
             result = core.download(arg[0], output_file)
             output_file.close()
-        except Exception as e:
-            print(e)
-            
+        else:
+            try:
+                output_file = open(fixpath(arg[1]),'wb')
+                result = core.download(arg[0], output_file)
+                output_file.close()
+            except Exception as e:
+                print(e)
+
 
 #DOWNLOAD AUTOCOMPLTE
     def complete_download(self, text, line, begidx, endidx):
         return [x for x in core._get_files_cached() if x.startswith(text)]
-
         
 #UPLOAD
     def do_upload(self, args):
@@ -452,12 +490,17 @@ class BoxRepl(Cmd):
             print('must specify a source and filename\n')
             return
 
-        try:
+        if __debug__:
             source_file = open(fixpath(arg[0]),'rb')
             result = core.upload(arg[1], source_file)
             source_file.close()
-        except Exception as e:
-            print(e)
+        else:
+            try:
+                source_file = open(fixpath(arg[0]),'rb')
+                result = core.upload(arg[1], source_file)
+                source_file.close()
+            except Exception as e:
+                print(e)
 
         
 #LS
@@ -480,7 +523,8 @@ class BoxRepl(Cmd):
         """
         arg,argkv = parse_args(args)
 
-        try:
+
+        if __debug__:
             if '-f' in arg:
                 items = core.ls(force=True)
                 if len(items) > 0:
@@ -489,8 +533,18 @@ class BoxRepl(Cmd):
                 items = core.ls()
                 if len(items) > 0:
                     print(' | '.join(items))
-        except Exception as e:
-            print(e)
+        else:
+            try:
+                if '-f' in arg:
+                    items = core.ls(force=True)
+                    if len(items) > 0:
+                        print(' | '.join(items))
+                else:
+                    items = core.ls()
+                    if len(items) > 0:
+                        print(' | '.join(items))
+            except Exception as e:
+                print(e)
 
         
 #PWD
@@ -510,10 +564,14 @@ class BoxRepl(Cmd):
 
         arg,argkv = parse_args(args)
 
-        try:
+
+        if __debug__:
             print(core.pwd())
-        except Exception as e:
-            print(e)
+        else:
+            try:
+                print(core.pwd())
+            except Exception as e:
+                print(e)
         
 
 #CD
@@ -533,10 +591,14 @@ class BoxRepl(Cmd):
 
         arg,argkv = parse_args(args)
 
-        try:
+
+        if __debug__:
             core.cd(arg[0])
-        except Exception as e:
-            print(e)
+        else:
+            try:
+                core.cd(arg[0])
+            except Exception as e:
+                print(e)
         
 
 #CD AUTOCOMPLTE
@@ -560,10 +622,14 @@ class BoxRepl(Cmd):
 
         arg, argkv = parse_args(args)
 
-        try:
+
+        if __debug__:
             core.mkdir(arg[0])
-        except Exception as e:
-            print(e)
+        else:
+            try:
+                core.mkdir(arg[0])
+            except Exception as e:
+                print(e)
         
 
 
@@ -587,7 +653,9 @@ class BoxRepl(Cmd):
         arg,argkv = parse_args(args)
         success = False
         name = ''
-        try:
+
+
+        if __debug__:
             if '-r' in arg:
                 name = arg[0]
                 success = core.rm(name,recursive=True)
@@ -600,14 +668,27 @@ class BoxRepl(Cmd):
             else:
                 name = arg[0]
                 success = core.rm(name)
-        except Exception as e:
-            print(e)
+        else:
+            try:
+                if '-r' in arg:
+                    name = arg[0]
+                    success = core.rm(name,recursive=True)
+                elif '-r' in argkv:
+                    name = argkv['-r']
+                    success = core.rm(name,recursive=True)
+                elif len(arg) < 1:
+                    print("no item specified\n")
+                    return
+                else:
+                    name = arg[0]
+                    success = core.rm(name)
+            except Exception as e:
+                print(e)
 
         if not success:
             print("could not delete {}".format(name))
 
         
-
 #RM AUTOCOMPLTE
     def complete_rm(self, text, line, begidx, endidx):
         return [x for x in core.ls() if x.startswith(text)]
@@ -628,10 +709,14 @@ class BoxRepl(Cmd):
         """
         arg,argkv = parse_args(args)
 
-        try:
+
+        if __debug__:
             print(core.cat(arg[0]))
-        except Exception as e:
-            print(e)
+        else:
+            try:
+                print(core.cat(arg[0]))
+            except Exception as e:
+                print(e)
 
 
 #CAT AUTOCOMPLTE
