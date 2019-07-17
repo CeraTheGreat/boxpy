@@ -1,3 +1,5 @@
+import pprint
+import json
 from cmd import Cmd
 import re
 import src.core as Core
@@ -79,6 +81,7 @@ class BoxRepl(Cmd):
         OPTIONS:
             -t  Use the tokens generated from the last sessoin. Refresh tokens
                 last for 60 days so this should be valid for just as long.
+                Logout wil invalidate these tokens.
         """
         arg,argkv = parse_args(args)
 
@@ -146,6 +149,140 @@ class BoxRepl(Cmd):
         """
         print(core.tokens())
         print('')
+
+#TEMPLATES
+    def do_templates(self, args):
+        """
+        NAME:
+            templates - the current enterprise level templates
+
+        SYNOPSIS:
+            templates
+
+        DESCRIPTION:
+            Shows the current templates by name and id
+
+        OPTIONS:
+            NONE
+        """
+
+        templates = core.templates()
+        for template in templates:
+            print("{} {}".format(templates[template], templates[template].displayName))
+        print('')
+
+#TEMPLATEINFO
+    def do_template(self, args):
+        """ 
+        NAME:
+            template - info about a template
+
+        SYNOPSIS:
+            template [template_index] [options]
+            template -n [template_name] [options]
+
+        DESCRIPTION:
+            Shows the template info for the specified template
+
+        OPTIONS:
+            -n  template_name, gets template by the name shown in the
+                'templates' command.
+            
+            -v  show all information
+        """
+        
+        arg,argkv = parse_args(args)
+
+        template = None
+
+        try:
+            if '-n' in argkv: 
+                template = core.template(argkv['-n'])
+            elif len(arg) > 0: 
+                template = core.template(arg[0])
+            else:
+                print("unrecognized arguments")
+                print('')
+                return
+        except Exception as e:
+            print(e)
+            print('')
+            return
+
+        print("{} {}".format(template, template.displayName))
+
+        if '-v' in arg:
+            print(json.dumps(template.fields, indent=4)) 
+        else:
+            string = json.dumps(template.fields, indent=4)
+            for line in string.splitlines():
+                if  line.lstrip().startswith('"') and \
+                not line.lstrip().startswith('"key') and \
+                not line.lstrip().startswith('"type') and \
+                not line.lstrip().startswith('"displayName') and \
+                not line.lstrip().startswith('"options'):
+                    continue
+                else:
+                    print(line)
+        print('')
+
+#TEMPLATE INFO AUTOCOMPLTE
+    def complete_template(self, text, line, begidx, endidx):
+        return [x for x in core.templates() if x.startswith(text)]
+
+#METADATA
+    def do_meta(self, args):
+
+        """ 
+        NAME:
+            meta - the metadata on a specified file
+
+        SYNOPSIS:
+            meta [item_name] [options]
+
+        DESCRIPTION:
+            Shows the metadata of a file or folder specified by the user.
+
+        OPTIONS:
+            -v  show all information
+        """
+        arg,argkv = parse_args(args)
+
+        data = None
+
+        try:
+            if len(arg) > 0:
+                data = core.metadata(arg[0])
+            else:
+                print("name must be supplied")
+                print('')
+                return
+        except Exception as e:
+                print(e)
+                print('')
+                return
+
+        #format data for printing
+        for instance in data:
+            print("template: {}".format(instance['$template']))
+            if '-v' in arg:
+                print(json.dumps(instance, indent=4))
+            else:
+                string = json.dumps(instance, indent=4)
+                for line in string.splitlines():
+                    if line.lstrip().startswith('"$'):
+                        continue
+                    else:
+                        print("    {}".format(line))
+                print('')
+
+        print('')
+
+
+#METADATA AUTOCOMPLTE
+    def complete_meta(self, text, line, begidx, endidx):
+        return [x for x in core.ls() if x.startswith(text)]
+
 
 #UID
     def do_uid(self, args):
@@ -231,8 +368,8 @@ class BoxRepl(Cmd):
             printstr += "\n    :owner: {}".format(result.owned_by)
         if ('-p' in arg or '-V' in arg) and result.parent is not None:
             printstr += "\n    :parent: <Box {type} - {id} ({name})>".format(type=result.parent.type.capitalize(),
-                                                                          id=result.parent.id,
-                                                                          name=result.parent.name)
+                                                                             id=result.parent.id,
+                                                                             name=result.parent.name)
         if '-s' in arg or '-V' in arg:
             printstr += "\n    :size: {}".format(result.size)
         if '-t' in arg or '-V' in arg:
@@ -242,6 +379,10 @@ class BoxRepl(Cmd):
 
         print(printstr)
         print('')
+
+#ITEMINFO AUTOCOMPLTE
+    def complete_iteminfo(self, text, line, begidx, endidx):
+        return [x for x in core.ls() if x.startswith(text)]
 
 #DOWNLOAD
     def do_download(self, args):
@@ -271,6 +412,10 @@ class BoxRepl(Cmd):
             output_file.close()
         except Exception as e:
             print(e)
+
+#DOWNLOAD AUTOCOMPLTE
+    def complete_download(self, text, line, begidx, endidx):
+        return [x for x in core._get_files_cached() if x.startswith(text)]
 
         print('')
 #UPLOAD
@@ -321,10 +466,13 @@ class BoxRepl(Cmd):
                 most recently available files are listed.
         """
         arg,argkv = parse_args(args)
-        if '-f' in arg:
-            print(' | '.join(core.ls(force=True)))
-        else:
-            print(' | '.join(core.ls()))
+        try:
+            if '-f' in arg:
+                print(' | '.join(core.ls(force=True)))
+            else:
+                print(' | '.join(core.ls()))
+        except Exception as e:
+            print(e)
 
         print('')
 #PWD
@@ -373,6 +521,10 @@ class BoxRepl(Cmd):
             print(e)
         print('')
 
+#CD AUTOCOMPLTE
+    def complete_cd(self, text, line, begidx, endidx):
+        return [x for x in core._get_folders_cached() if x.startswith(text)]
+
 #MKDIR
     def do_mkdir(self, args):
         """
@@ -417,23 +569,31 @@ class BoxRepl(Cmd):
         arg,argkv = parse_args(args)
         success = False
         name = ''
-        if '-r' in arg:
-            name = arg[0]
-            success = core.rm(name,recursive=True)
-        elif '-r' in argkv:
-            name = argkv['-r']
-            success = core.rm(name,recursive=True)
-        elif len(arg) < 1:
-            print("no item specified\n")
-            return
-        else:
-            name = arg[0]
-            success = core.rm(name)
+        try:
+            if '-r' in arg:
+                name = arg[0]
+                success = core.rm(name,recursive=True)
+            elif '-r' in argkv:
+                name = argkv['-r']
+                success = core.rm(name,recursive=True)
+            elif len(arg) < 1:
+                print("no item specified\n")
+                return
+            else:
+                name = arg[0]
+                success = core.rm(name)
+        except Exception as e:
+            print(e)
 
         if not success:
             print("could not delete {}".format(name))
 
         print('')
+
+#RM AUTOCOMPLTE
+    def complete_rm(self, text, line, begidx, endidx):
+        return [x for x in core.ls() if x.startswith(text)]
+
 #CAT
     def do_cat(self, args):
         """
@@ -450,8 +610,17 @@ class BoxRepl(Cmd):
         """
         arg,argkv = parse_args(args)
 
-        print(core.cat(arg[0]))
+        try:
+            print(core.cat(arg[0]))
+        except Exception as e:
+            print(e)
+
         print('')
+
+#CAT AUTOCOMPLTE
+    def complete_cat(self, text, line, begidx, endidx):
+        return [x for x in core._get_files_cached() if x.startswith(text)]
+
 #QUIT
     def do_quit(self, args):
         raise SystemExit
@@ -464,9 +633,9 @@ if __name__ == '__main__':
 
 #OLD TEST CODE
 #auth = OAuth2(
-#    client_id='ba6xqqqso7wauppnvtixr258oemo1cnk',
-#    client_secret='jB1t76Q4WlnRL8ETYwI2gc2Doa90Rrkm',
-#    access_token='ilbWsFamFkv0MvC1YPhiMW60b3MkY7sM',
+#    client_id='',
+#    client_secret='',
+#    access_token='',
 #)
 #
 #client = Client(auth)
