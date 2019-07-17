@@ -36,7 +36,7 @@ If you do have existing hooks, you will have to manually alter them to run the a
 #### Aliasing
 You may optionally add a `git ctags` command by running
 ```bash
-git options --global alias.ctags '!.git/hooks/ctags'
+git config --global alias.ctags '!.git/hooks/ctags'
 ```
 
 ## Usage
