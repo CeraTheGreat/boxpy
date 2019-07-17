@@ -13,16 +13,12 @@ class BoxCore:
     #initializatoins
     def __init__(self):
         self.current_path = [('/',0)]
-
         self.current_files = {}
         self.current_folders = {}
         self.current_templates = {}
         self.enterprise_templates = {}
-
         self.client = None
-
         self.authenticator = oauth.BoxOAuth()
-
                             
     def _init_filestruct(self):
         self._get_children(self.current_path[-1][1])
@@ -39,22 +35,26 @@ class BoxCore:
         """
         folder_info = self._get_folder(folder_id)
         children = folder_info.item_collection['entries']
-
-
         self.current_files = {}
         self.current_folders = {}
+
         for child in children:
                 if child.type == 'folder':
                     self.current_folders[child.name] = child.id
                 else:
                     self.current_files[child.name] = child.id
-
         return folder_info.item_collection['entries']
 
     def _get_folders_cached(self):
+        """ :return: the sparse folders of the current directory 
+            :rtype: array
+        """
         return [x for x in self.current_folders]
 
     def _get_files_cached(self):
+        """ :return: the sparse files of the currend directory
+            :rtype: array
+        """
         return [x for x in self.current_files]
 
     def _get_children_cached(self):
@@ -72,26 +72,30 @@ class BoxCore:
             :return: the full info on the specified item
             :rtype: json object
         """
+        #If name is a file
         if name in self.current_files:
             return self._get_file(self.current_files[name])
+        #If name is a folder
         elif name in self.current_folders:
             return self._get_folder(self.current_folders[name])
         else:
             raise Exception("file not found")
 
-    
     def _get_metadata(self, name):
         """ :param item_id: the id of the item in the box repository
             :param type: the type of the item - 'file', 'folder', 'unknown'
             :return: the full info on the specified item
             :rtype: json object
         """
+        #If name is a file
         if name in self.current_files:
             return self._get_file_meta(self.current_files[name])
+        #If name is a folder
         elif name in self.current_folders:
             return self._get_folder_meta(self.current_folders[name])
         else:
             raise Exception("file not found")
+
     #Get folder by id
     def _get_folder(self, folder_id):
         return self.client.folder(str(folder_id)).get()
@@ -108,13 +112,15 @@ class BoxCore:
     def _get_folder_meta(self, folder_id):
         return self.client.folder(str(folder_id)).get_all_metadata()
     
-
+    #Get file stream (to save to system)
     def _download_file_to_stream(self, file_id, dest_stream):
         return self.client.file(str(file_id)).download_to(dest_stream)
 
+    #Get file (saved to memory for program use)
     def _download_file(self, file_id):
         return self.client.file(str(file_id)).content()
 
+    #Send byte stream to specified folder
     def _upload_file(self, dest_folder_id, file_name, file_stream):
         new_file = self.client.folder(str(dest_folder_id)).upload_stream( \
                                                            file_stream,
@@ -122,14 +128,19 @@ class BoxCore:
         self.current_files[new_file.name] = new_file.id
         return new_file
 
+    #Remove a folder
     def _delete_folder(self, folder_id, recursive=False):
         return self.client.folder(str(folder_id)).delete(recursive=recursive)
 
+    #Remove a file
     def _delete_file(self, file_id):
         return self.client.file(str(file_id)).delete()
 
+    #Create a folder
     def _new_folder(self, parent_id, name):
+        #upload
         new_folder = self.client.folder(parent_id).create_subfolder(name)
+        #add to local cache
         self.current_folders[new_folder.name] = new_folder.id
         return new_folder
 
@@ -173,13 +184,9 @@ class BoxCore:
         # TODO : 
         #   Need to impliment metadata
         #   Metadata needs several things:
-        #       >View it on the command line
         #       >Map values for upload
-        #       >Store existing templates
         #       >Create a template
-        #       >
 
-    
     def _get_enterprise_templates_cached(self):
         return self.enterprise_templates
 #------------------------------------------------------------------------------#
@@ -239,22 +246,21 @@ class BoxCore:
         return '/'+'/'.join([x[0] for x in self.current_path[1:]])
 #CD
     def cd(self, foldername):
+        #folder exists
         if foldername in self.current_folders:
-
             self.current_path.append((foldername,self.current_folders[foldername]))
             self._get_children(self.current_path[-1][1])
-
+        #return to parent if not at root
         elif foldername == '..' and self.current_path[-1][1] != 0:
-
             del self.current_path[-1]
             self._get_children(self.current_path[-1][1])
-
+        #folder is actually a flie
         elif foldername in self.current_files:
             raise Exception("not a folder")
-
+        #at root, can't go any further
         elif foldername == '..' and self.current_path[-1][1] == 0:
-            raise Exception("already at root")
-
+            return
+        #folder does not exist
         else:
             raise Exception("folder not found")
 
@@ -274,17 +280,20 @@ class BoxCore:
 
 #RM
     def rm(self, name, recursive=False):
+        #if name is folder
         if name in self.current_folders:
             succ = self._delete_folder(self.current_folders[name], 
                                        recursive=recursive)
             if succ:
                 del self.current_folders[name]
             return succ
+        #if name is file
         elif name in self.current_files:
             succ = self._delete_file(self.current_files[name])
             if succ:
                 del self.current_files[name]
             return succ
+        #name does not exist
         else:
             raise Exception("file not found")
 

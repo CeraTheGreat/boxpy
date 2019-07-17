@@ -11,23 +11,28 @@ auth_code = None
 class BoxOAuth:
     def __init__(self):
 
+        #json
         cred_file = open('cred/cred.json',"r")
         cred_json = json.load(cred_file)
 
+        #client & websocket
         self.client_id = cred_json['client_id']
         self.client_secret = cred_json['client_secret']
         self.redirect_port = 55655
         self.redirect_uri = 'http://localhost:{}/'.format(self.redirect_port)
 
+        #oauth
         self.oauth = None
         self.auth_url = None
         self.csrf_token = None
         self.token_dict = {'access_token':'','refresh_token':''}
 
+    #when new tokens are generated, this should be run
     def _store_tokens(self, access_token, refresh_token):
         #write tokens to cred
         token_json = open('cred/tokens.json','w+')
-        self.token_dict['access_token'],self.token_dict['refresh_token'] = access_token,refresh_token
+        self.token_dict['access_token'] = access_token
+        self.token_dict['refresh_token'] = refresh_token
         json.dump(self.token_dict, token_json)
         token_json.close()
 
@@ -71,13 +76,17 @@ class BoxOAuth:
         """
         User login, uses OAuth2
         """
-
         #auth_code is a global variable set by the server when it exits
         global auth_code
 
-        #setup a local server to catch the redirected OAuth2 login : https://tools.ietf.org/html/rfc6749#section-3.1.2
-        httpd = StoppableHttpServer(('localhost', self.redirect_port),
-            HTTPLoopbackHandler)
+        #setup a local server to catch the redirected OAuth2 login 
+        #https://tools.ietf.org/html/rfc6749#section-3.1.2
+        httpd = StoppableHttpServer((
+                                      'localhost',
+                                      self.redirect_port
+                                    ),
+                                    HTTPLoopbackHandler
+                                   )
 
         self.oauth = OAuth2(
             client_id=self.client_id,
@@ -88,7 +97,6 @@ class BoxOAuth:
 
         #give the user a login prompt in thier default browser
         webbrowser.open_new_tab(self.auth_url)
-
         #wait for the redirect
         httpd.serve_forever()
 
