@@ -602,7 +602,6 @@ class BoxRepl(Cmd):
             except Exception as e:
                 print(e)
         
-
 #CD AUTOCOMPLTE
     def complete_cd(self, text, line, begidx, endidx):
         return [x for x in core._get_folders_cached() if x.startswith(text)]
@@ -624,7 +623,6 @@ class BoxRepl(Cmd):
 
         arg, argkv = parse_args(args)
 
-
         if __debug__:
             core.mkdir(arg[0])
         else:
@@ -632,8 +630,6 @@ class BoxRepl(Cmd):
                 core.mkdir(arg[0])
             except Exception as e:
                 print(e)
-        
-
 
 #RM
     def do_rm(self, args):
@@ -655,7 +651,6 @@ class BoxRepl(Cmd):
         arg,argkv = parse_args(args)
         success = False
         name = ''
-
 
         if __debug__:
             if '-r' in arg:
@@ -690,7 +685,6 @@ class BoxRepl(Cmd):
 
         if not success:
             print("could not delete {}".format(name))
-
         
 #RM AUTOCOMPLTE
     def complete_rm(self, text, line, begidx, endidx):
@@ -759,7 +753,6 @@ class BoxRepl(Cmd):
                     print(core.cat(arg[0]).decode('utf-8'))
             except Exception as e:
                 print(e)
-
 
 #CAT AUTOCOMPLTE
     def complete_cat(self, text, line, begidx, endidx):
