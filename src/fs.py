@@ -30,11 +30,11 @@ class FileSystem:
 
         dirs = path.split('/')
         for directory in dirs:
-            directory = filter(lambda ch: ch not in '"', directory)
+            directory = ''.join(filter(lambda ch: ch not in '"', directory))
             if directory == ' ' or directory == '' or directory == '.':
                 continue
             elif self.head(temp_path).contains_folder(directory):
-                temp_path.append(head(temp_path).folders[directory])
+                temp_path.append((directory,self.head(temp_path).folders[directory]))
             elif directory == '..':
                 temp_path.pop()
             elif self.head(temp_path).contains_file(directory):
@@ -43,28 +43,28 @@ class FileSystem:
                 raise Exception("{} in {} does not exist".format(directory, path))
         self.current_path = temp_path
             
-    def get_item_id(self, path):
-        if path.contains('/'):
+    def get_item(self, path):
+        if '/' in path:
             old_path = self.current_path
             item,path = path.split('/')[-1],('/').join(path.split('/')[:-1])
             self.traverse(path)
             
-            if self.pwd()[1].contains_folder(item):
-                item = self.pwd()[1].folders[item]
+            if self.pwd().contains_folder(item):
+                item = self.pwd().folders[item]
                 self.current_path = old_path
                 return item
-            elif self.pwd()[1].contains_file(item):
-                item = self.pwd()[1].files[item]
+            elif self.pwd().contains_file(item):
+                item = self.pwd().files[item]
                 self.current_path = old_path
                 return item
             else:
                 self.current_path = old_path
                 raise Exception('{} could not be found'.format(item))
         else:
-            if self.pwd()[1].contains_folder(path):
-                return self.pwd()[1].folders[path]
-            elif self.pwd()[1].contains_file(path):
-                return self.pwd()[1].files[path]
+            if self.pwd().contains_folder(path):
+                return self.pwd().folders[path]
+            elif self.pwd().contains_file(path):
+                return self.pwd().files[path]
             else:
                 raise Exception('{} could not be found'.format(item))
 
@@ -82,22 +82,22 @@ class FileSystem:
 
 
 class Item:
-    def __init__(self, item_id, name):
+    def __init__(self, name, item_id):
         self.name = name
         self.id = item_id
 
 
 class Folder(Item):
     def __init__(self, name, folder_id):
-        super().__init__(folder_id, name)
+        super().__init__(name, folder_id)
         self.folders = {}
         self.files = {}
 
     def add_folder(self, name, folder_id):
-        self.folders[name] = Folder(folder_id, name)
+        self.folders[name] = Folder(name, folder_id)
 
     def add_file(self, name, file_id):
-        self.files[name] = File(file_id, name)
+        self.files[name] = File(name, file_id)
 
     def del_folder(self, name):
         del self.folders[name]
@@ -117,12 +117,12 @@ class Folder(Item):
         return contains_file(name) or contains_folder(name)
 
     def contains_file(self, name):
-        return any([x for x in self.files if x[0] == name])
+        return any([x for x in self.files if x == name])
 
     def contains_folder(self, name):
-        return any([x for x in self.folders if x[0] == name])
+        return any([x for x in self.folders if x == name])
 
 
 class File(Item):
     def __init__(self, name, file_id):
-        super().__init__(file_id, name)
+        super().__init__(name, file_id)

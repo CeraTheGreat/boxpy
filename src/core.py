@@ -22,19 +22,19 @@ class BoxCore:
         self.authenticator = oauth.BoxOAuth()
                             
     def _init_filestruct(self):
-        self._get_children(self.fs.pwd().id)
+        self._get_children()
         self._get_enterprise_templates()
 
                             #Private Functions#
 #------------------------------------------------------------------------------#
 
-    def _get_children(self, folder_id):
+    def _get_children(self):
         """ :param folder_id: the id of the folder in the box repository
             :type folder_id: string
             :return: the sparse children of the flie
             :rtype: json object
         """
-        folder_info = self._get_folder(folder_id)
+        folder_info = self._get_folder(self.fs.pwd().id)
         children = folder_info.item_collection['entries']
         self.fs.pwd().files = {}
         self.fs.pwd().folders= {}
@@ -77,11 +77,11 @@ class BoxCore:
             :rtype: json object
         """
         #If name is a file
-        if name in self.fs.is_file(name):
-            return self._get_file(self.fs.get_item_id(name))
+        if self.fs.is_file(name):
+            return self._get_file(self.fs.get_item(name).id)
         #If name is a folder
-        elif name in self.fs.is_folder(name):
-            return self._get_folder(self.fs.get_item_id(name))
+        elif self.fs.is_folder(name):
+            return self._get_folder(self.fs.get_item(name).id)
         else:
             raise Exception("file not found")
 
@@ -92,11 +92,11 @@ class BoxCore:
             :rtype: json object
         """
         #If name is a file
-        if name in self.fs.is_file(name):
-            return self._get_file_meta(self.fs.get_item_id(name))
+        if self.fs.is_file(name):
+            return self._get_file_meta(self.fs.get_item(name).id)
         #If name is a folder
-        elif name in self.fs.is_folder(name):
-            return self._get_folder_meta(self.fs.get_item_id(name))
+        elif self.fs.is_folder(name):
+            return self._get_folder_meta(self.fs.get_item(name).id)
         else:
             raise Exception("file not found")
 
@@ -241,7 +241,7 @@ class BoxCore:
 #LS
     def ls(self, force=False):
         if force:
-            return [x.name for x in self._get_children(self.fs.pwd().id)]
+            return [x.name for x in self._get_children()]
         else:
             return self._get_children_cached()
 #PWD
@@ -250,6 +250,7 @@ class BoxCore:
 #CD
     def cd(self, path):
         self.fs.traverse(path)
+        self._get_children()
         ##folder exists
         #if foldername in self.current_folders:
         #    self.current_path.append((foldername,self.current_folders[foldername]))
@@ -271,7 +272,7 @@ class BoxCore:
 #DOWNLOAD
     def download(self, filename, dest_stream):
         if self.fs.is_file(filename):
-            return self._download_file_to_stream(self.fs.get_item_id(filename),
+            return self._download_file_to_stream(self.fs.get_item(filename).id,
                                                  dest_stream)
         else:
             raise Exception("file not found")
@@ -286,14 +287,14 @@ class BoxCore:
     def rm(self, name, recursive=False):
         #if name is folder
         if self.fs.is_folder(name):
-            succ = self._delete_folder(self.fs.get_item_id(name), 
+            succ = self._delete_folder(self.fs.get_item(name).id, 
                                        recursive=recursive)
             if succ:
                 self.fs.pwd().del_folder(name)
             return succ
         #if name is file
         elif self.fs.is_file(name):
-            succ = self._delete_file(self.fs.get_item_id(name))
+            succ = self._delete_file(self.fs.get_item(name).id)
             if succ:
                 self.fs.pwd().del_file(name)
             return succ
@@ -308,5 +309,5 @@ class BoxCore:
 #CAT
     def cat(self, name):
         if self.fs.is_file(name):
-            return self._download_file(self.fs.get_item_id(name)).decode("utf-8")
+            return self._download_file(self.fs.get_item(name).id)
 #------------------------------------------------------------------------------#
