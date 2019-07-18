@@ -1,3 +1,4 @@
+import hexdump
 import pprint
 import json
 from cmd import Cmd
@@ -5,12 +6,18 @@ import re
 import src.core as Core
 import os
 
-#regex for matching arguments in an args string e.g. '-P ~/Documents/Notes/note.txt -r -m' -> [('-P', '~/Documents/Notes/note.txt')],['-r','-m']
-args_re = re.compile('((?:--|-)[\w\\\/\:\-]+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:[\w\\\/\.]+(?:-[\w\\\/\.\-\(\)]*)?))?)|((?:[\w\.\\\/\:\~\(\)\-]+)|(?:"[\w\.\\\/\:\~]+"))')
+# regex for matching arguments in an args string e.g. 
+# '-P ~/Documents/Notes/note.txt -r -m' -> 
+# [('-P', '~/Documents/Notes/note.txt')],['-r','-m']
+args_re = re.compile(
+        '((?:--|-)[\w\\\/\:\-]+(?: |=|$)(?:(?:[\"\'][^\"\']*[\"\'])|(?:[\w\\\/\.]+(?:-[\w\\\/\.\-\(\)]*)?))?)|'
+        '(?:(?:[\"\'][\w\.\\\/\:\~\(\)\- ]+[\"\'])|(?:[\w\.\\\/\:\~\(\)\-]+))'
+    )
 
 #The core does the dirty work of connecting and keeping track of the state
 core = Core.BoxCore()
 
+#uses a regex to parse an argument string
 def parse_args(args):
     """
     Parse command line arguments e.g. 'login -A <token>'
@@ -24,25 +31,33 @@ def parse_args(args):
     single      = []
     pairs       = {}
 
+    #For all matches
     for m in args_re.finditer(args):
         t = m.group(0)
+        #if the match contains ' or '
         if('\'' in t or '\"' in t):
-            if('=' in t):
+            if not t.startswith("-"):
+                single.append(t)
+            elif('=' in t):
+                #split at the first equals sign
                 lval,rval = t.split('=',1)
                 pairs[lval] = rval[1:-1]
             else:
+                #split at the first space
                 lval,rval = t.split(' ',1)
                 pairs[lval] = rval[1:-1]
         else:
+            #split at the first equals sign
             if('=' in t[:-1]):
                 lval,rval = t.split('=',1)
                 pairs[lval] = rval
+            #split at the first space
             elif(' ' in t[:-1]):
                 lval,rval = t.split(' ',1)
                 pairs[lval] = rval
+            #we have a single
             else:
                 single.append(t)
-
     return (single, pairs)
 
 #convert Xnix paths to your machine's path
@@ -56,9 +71,6 @@ class BoxRepl(Cmd):
 
     def __init__(self):
         super(BoxRepl, self).__init__()
-
-
-
 
 #LOGIN
     def do_login(self, args):
@@ -85,19 +97,28 @@ class BoxRepl(Cmd):
         """
         arg,argkv = parse_args(args)
 
-        try:
-            if '-A' in argkv:
-                core.login(id=argkv['-A'])
-            elif '-t' in arg:
-                core.login(token=True)
-            else:
-                core.login()
 
-        except Exception as e:
-            print(e)
-            print("Could not login, token expired or invalid")
+        if __debug__:
+                if '-A' in argkv:
+                    core.login(id=argkv['-A'])
+                elif '-t' in arg:
+                    core.login(token=True)
+                else:
+                    core.login()
+            
+        else:
+            try:
+                if '-A' in argkv:
+                    core.login(id=argkv['-A'])
+                elif '-t' in arg:
+                    core.login(token=True)
+                else:
+                    core.login()
+            except Exception as e:
+                print(e)
+                print("Could not login, token expired or invalid")
 
-        print('')
+        
 
 #LOGOUT
     def do_logout(self, args):
@@ -119,18 +140,22 @@ class BoxRepl(Cmd):
         OPTIONS:
             NONE
         """
-
+        
         if core.is_logged_in():
-            try:
+            if __debug__:
                 user = core.uid()
                 response = core.logout()
                 print ("logging out {}...".format(user))
-            except Exception as e:
-                print(e)
+            else:
+                try:
+                    user = core.uid()
+                    response = core.logout()
+                    print ("logging out {}...".format(user))
+                except Exception as e:
+                    print(e)
         else:
             print("user already logged out")
-
-        print('')
+            
 
 #TOKENS
     def do_tokens(self, args):
@@ -148,7 +173,7 @@ class BoxRepl(Cmd):
             NONE
         """
         print(core.tokens())
-        print('')
+        
 
 #TEMPLATES
     def do_templates(self, args):
@@ -169,7 +194,7 @@ class BoxRepl(Cmd):
         templates = core.templates()
         for template in templates:
             print("{} {}".format(templates[template], templates[template].displayName))
-        print('')
+        
 
 #TEMPLATEINFO
     def do_template(self, args):
@@ -192,27 +217,35 @@ class BoxRepl(Cmd):
         """
         
         arg,argkv = parse_args(args)
-
         template = None
 
-        try:
+        if __debug__:
             if '-n' in argkv: 
                 template = core.template(argkv['-n'])
             elif len(arg) > 0: 
                 template = core.template(arg[0])
             else:
                 print("unrecognized arguments")
-                print('')
                 return
-        except Exception as e:
-            print(e)
-            print('')
-            return
+
+        else:
+            try:
+                if '-n' in argkv: 
+                    template = core.template(argkv['-n'])
+                elif len(arg) > 0: 
+                    template = core.template(arg[0])
+                else:
+                    print("unrecognized arguments")
+                    return
+            except Exception as e:
+                print(e)
+                return
 
         print("{} {}".format(template, template.displayName))
 
         if '-v' in arg:
             print(json.dumps(template.fields, indent=4)) 
+        #skip unwanted information about each field
         else:
             string = json.dumps(template.fields, indent=4)
             for line in string.splitlines():
@@ -224,7 +257,7 @@ class BoxRepl(Cmd):
                     continue
                 else:
                     print(line)
-        print('')
+        
 
 #TEMPLATE INFO AUTOCOMPLTE
     def complete_template(self, text, line, begidx, endidx):
@@ -232,7 +265,6 @@ class BoxRepl(Cmd):
 
 #METADATA
     def do_meta(self, args):
-
         """ 
         NAME:
             meta - the metadata on a specified file
@@ -247,36 +279,42 @@ class BoxRepl(Cmd):
             -v  show all information
         """
         arg,argkv = parse_args(args)
-
         data = None
 
-        try:
+        if __debug__:
             if len(arg) > 0:
                 data = core.metadata(arg[0])
             else:
                 print("name must be supplied")
-                print('')
                 return
-        except Exception as e:
-                print(e)
-                print('')
-                return
+
+        else:
+            try:
+                if len(arg) > 0:
+                    data = core.metadata(arg[0])
+                else:
+                    print("name must be supplied")
+                    return
+            except Exception as e:
+                    print(e)
+                    return
 
         #format data for printing
         for instance in data:
             print("template: {}".format(instance['$template']))
+            #print verbose
             if '-v' in arg:
                 print(json.dumps(instance, indent=4))
+            #print clean
             else:
                 string = json.dumps(instance, indent=4)
                 for line in string.splitlines():
+                    #ignore lines that start with $, they are extra information
                     if line.lstrip().startswith('"$'):
                         continue
                     else:
                         print("    {}".format(line))
-                print('')
-
-        print('')
+            print('')        
 
 
 #METADATA AUTOCOMPLTE
@@ -299,25 +337,29 @@ class BoxRepl(Cmd):
         OPTIONS:
             NONE
         """
+
         if core.is_logged_in():
-            try:
+            if __debug__:
                 user = core.uid()
                 print(user)
-            except Exception as e:
-                print(e)
+            else:
+                try:
+                    user = core.uid()
+                    print(user)
+                except Exception as e:
+                    print(e)
         else:
             print("not currently logged in")
-
-        print('')
+        
 
 #ITEMINFO
-    def do_iteminfo(self, args):
+    def do_info(self, args):
         """
         NAME:
-            iteminfo - show the info (not the content) of a item on Box
+            info - show the info (not the content) of a item on Box
 
         SYNOPSIS:
-            iteminfo file_name [options]
+            info file_name [options]
 
         DESCRIPTION:
             Displays information on a item. This is NOT the content of the item,
@@ -348,17 +390,20 @@ class BoxRepl(Cmd):
             print("filename must be supplied\n")
             return
         else:
-            try:
-                result = core.iteminfo(arg[0])
-            except Exception as e:
-                print("error: {}\n".format(e))
-                return
 
+            if __debug__:
+                result = core.iteminfo(arg[0])
+            else:
+                try:
+                    result = core.iteminfo(arg[0])
+                except Exception as e:
+                    print(e)
+                    return
 
         printstr = "<Box {type} - {id} ({name})>".format(type=result.type.capitalize(),
                                                          id=result.id,
                                                          name=result.name)
-
+        
         #print info specified by the flags
         if '-d' in arg or '-V' in arg:
             printstr += "\n    :description: {}".format(result.description)
@@ -378,10 +423,10 @@ class BoxRepl(Cmd):
             printstr += "\n    :status: {}".format(result.file_version)
 
         print(printstr)
-        print('')
+        
 
 #ITEMINFO AUTOCOMPLTE
-    def complete_iteminfo(self, text, line, begidx, endidx):
+    def complete_info(self, text, line, begidx, endidx):
         return [x for x in core.ls() if x.startswith(text)]
 
 #DOWNLOAD
@@ -406,18 +451,24 @@ class BoxRepl(Cmd):
             print('must specify a filename and a download location\n')
             return
 
-        try:
+        if __debug__:
             output_file = open(fixpath(arg[1]),'wb')
             result = core.download(arg[0], output_file)
             output_file.close()
-        except Exception as e:
-            print(e)
+
+        else:
+            try:
+                output_file = open(fixpath(arg[1]),'wb')
+                result = core.download(arg[0], output_file)
+                output_file.close()
+            except Exception as e:
+                print(e)
+
 
 #DOWNLOAD AUTOCOMPLTE
     def complete_download(self, text, line, begidx, endidx):
         return [x for x in core._get_files_cached() if x.startswith(text)]
-
-        print('')
+        
 #UPLOAD
     def do_upload(self, args):
         """
@@ -439,14 +490,20 @@ class BoxRepl(Cmd):
             print('must specify a source and filename\n')
             return
 
-        try:
+        if __debug__:
             source_file = open(fixpath(arg[0]),'rb')
             result = core.upload(arg[1], source_file)
             source_file.close()
-        except Exception as e:
-            print(e)
 
-        print('')
+        else:
+            try:
+                source_file = open(fixpath(arg[0]),'rb')
+                result = core.upload(arg[1], source_file)
+                source_file.close()
+            except Exception as e:
+                print(e)
+
+        
 #LS
     def do_ls(self, args):
         """
@@ -466,15 +523,32 @@ class BoxRepl(Cmd):
                 most recently available files are listed.
         """
         arg,argkv = parse_args(args)
-        try:
-            if '-f' in arg:
-                print(' | '.join(core.ls(force=True)))
-            else:
-                print(' | '.join(core.ls()))
-        except Exception as e:
-            print(e)
 
-        print('')
+
+        if __debug__:
+            if '-f' in arg:
+                items = core.ls(force=True)
+                if len(items) > 0:
+                    print(' | '.join(items))
+            else:
+                items = core.ls()
+                if len(items) > 0:
+                    print(' | '.join(items))
+
+        else:
+            try:
+                if '-f' in arg:
+                    items = core.ls(force=True)
+                    if len(items) > 0:
+                        print(' | '.join(items))
+                else:
+                    items = core.ls()
+                    if len(items) > 0:
+                        print(' | '.join(items))
+            except Exception as e:
+                print(e)
+
+        
 #PWD
     def do_pwd(self, args):
         """
@@ -492,11 +566,15 @@ class BoxRepl(Cmd):
 
         arg,argkv = parse_args(args)
 
-        try:
+
+        if __debug__:
             print(core.pwd())
-        except Exception as e:
-            print(e)
-        print('')
+        else:
+            try:
+                print(core.pwd())
+            except Exception as e:
+                print(e)
+        
 
 #CD
     def do_cd(self, args):
@@ -515,11 +593,15 @@ class BoxRepl(Cmd):
 
         arg,argkv = parse_args(args)
 
-        try:
+
+        if __debug__:
             core.cd(arg[0])
-        except Exception as e:
-            print(e)
-        print('')
+        else:
+            try:
+                core.cd(arg[0])
+            except Exception as e:
+                print(e)
+        
 
 #CD AUTOCOMPLTE
     def complete_cd(self, text, line, begidx, endidx):
@@ -542,11 +624,15 @@ class BoxRepl(Cmd):
 
         arg, argkv = parse_args(args)
 
-        try:
+
+        if __debug__:
             core.mkdir(arg[0])
-        except Exception as e:
-            print(e)
-        print('')
+        else:
+            try:
+                core.mkdir(arg[0])
+            except Exception as e:
+                print(e)
+        
 
 
 #RM
@@ -569,7 +655,9 @@ class BoxRepl(Cmd):
         arg,argkv = parse_args(args)
         success = False
         name = ''
-        try:
+
+
+        if __debug__:
             if '-r' in arg:
                 name = arg[0]
                 success = core.rm(name,recursive=True)
@@ -582,70 +670,125 @@ class BoxRepl(Cmd):
             else:
                 name = arg[0]
                 success = core.rm(name)
-        except Exception as e:
-            print(e)
+
+        else:
+            try:
+                if '-r' in arg:
+                    name = arg[0]
+                    success = core.rm(name,recursive=True)
+                elif '-r' in argkv:
+                    name = argkv['-r']
+                    success = core.rm(name,recursive=True)
+                elif len(arg) < 1:
+                    print("no item specified\n")
+                    return
+                else:
+                    name = arg[0]
+                    success = core.rm(name)
+            except Exception as e:
+                print(e)
 
         if not success:
             print("could not delete {}".format(name))
 
-        print('')
-
+        
 #RM AUTOCOMPLTE
     def complete_rm(self, text, line, begidx, endidx):
         return [x for x in core.ls() if x.startswith(text)]
 
-#CAT
-    def do_cat(self, args):
+#HEXDUMP
+    def do_xxd(self, args):
         """
         NAME:
-            cat - print out the UTF-8 representation of the file specified
+            xxd - print out a hexdump of the file specified
 
         SYNOPSIS:
-            cat [file]
+            cat [file] 
 
         DESCRIPTION:
-            Prints the file specified. Uses UTF-8 encoding.
+            Prints a hexdump of the specified file
 
         OPTIONS:
         """
         arg,argkv = parse_args(args)
 
-        try:
-            print(core.cat(arg[0]))
-        except Exception as e:
-            print(e)
 
-        print('')
+        if __debug__:
+            hexdump.hexdump(core.cat(arg[0]))
+        else:
+            try:
+                hexdump.hexdump(core.cat(arg[0]))
+            except Exception as e:
+                print(e)
+
+#AUTOCOMPLETE HEXDUMP
+    def complete_xxd(self, text, line, begidx, endidx):
+        return [x for x in core._get_files_cached() if x.startswith(text)]
+    
+#CAT
+    def do_cat(self, args):
+        """
+        NAME:
+            cat - print out the file specified
+
+        SYNOPSIS:
+            cat [file] [options]
+
+        DESCRIPTION:
+            Prints the file specified. Uses UTF-8 encoding.
+
+        OPTIONS:
+            -d Decode type, how should cat decode the string.
+               By default this is 'utf-8'.
+                 > utf-8
+                 > ascii
+        """
+        arg,argkv = parse_args(args)
+
+
+        if __debug__:
+            if '-d' in argkv and argkv['-d'] == 'ascii':
+                print(core.cat(arg[0]).decode('ascii'))
+            elif ('-d' in argkv and argkv['d'] == 'utf-8') or '-d' not in argkv:
+                print(core.cat(arg[0]).decode('utf-8'))
+        else:
+            try:
+                if '-d' in argkv and argkv['-d'] == 'ascii':
+                    print(core.cat(arg[0]).decode('ascii'))
+                elif ('-d' in argkv and argkv['d'] == 'utf-8') or '-d' not in argkv:
+                    print(core.cat(arg[0]).decode('utf-8'))
+            except Exception as e:
+                print(e)
+
 
 #CAT AUTOCOMPLTE
     def complete_cat(self, text, line, begidx, endidx):
         return [x for x in core._get_files_cached() if x.startswith(text)]
 
+#MANUAL
+    def do_man(self, args):
+        """
+        NAME:
+            man - show help documentation for a given command
+
+        SYNOPSIS:
+            cat [command] 
+
+        DESCRIPTION:
+            An alias for 'help'
+
+        OPTIONS:
+        """ 
+        self.do_help(args)
+
 #QUIT
     def do_quit(self, args):
         raise SystemExit
 
+#Only runs if this is the main, change boxpy.py to affect these values
 if __name__ == '__main__':
 
     repl = BoxRepl()
-    repl.prompt = '> '
+    repl.prompt = '\nboxpy> '
     repl.cmdloop('Starting prompt...')
 
-#OLD TEST CODE
-#auth = OAuth2(
-#    client_id='',
-#    client_secret='',
-#    access_token='',
-#)
-#
-#client = Client(auth)
-#
-#user = client.user().get()
-#print('The current user ID is {0}'.format(user.id))
-#
-#json_response = client.make_request(
-#    'GET',
-#    client.get_url('metadata_templates', 'enterprise'),
-#).json()
-#
-#print(json_response)
