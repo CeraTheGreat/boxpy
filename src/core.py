@@ -300,6 +300,7 @@ class BoxCore:
             return succ
         #name does not exist
         else:
+            print(name)
             raise Exception("file not found")
 
 #MKDIR

@@ -34,10 +34,10 @@ def parse_args(args):
     #For all matches
     for m in args_re.finditer(args):
         t = m.group(0)
-        #if the match contains ' or '
+        #if the match contains ' or "
         if('\'' in t or '\"' in t):
             if not t.startswith("-"):
-                single.append(t)
+                single.append(t[1:-1])
             elif('=' in t):
                 #split at the first equals sign
                 lval,rval = t.split('=',1)
