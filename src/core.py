@@ -9,7 +9,6 @@ import src.fs as filesystem
                               #CORE#
 #------------------------------------------------------------------------------#
 class BoxCore:
-
     #initializatoins
     def __init__(self):
         self.fs = filesystem.FileSystem('/',0)
@@ -213,6 +212,7 @@ class BoxCore:
 #LOGOUT
     def logout(self):
         self.authenticator.logout()
+        self.client = None
 
 #TOKENS
     def tokens(self):
@@ -251,24 +251,6 @@ class BoxCore:
     def cd(self, path):
         self.fs.traverse(path)
         self._get_children()
-        ##folder exists
-        #if foldername in self.current_folders:
-        #    self.current_path.append((foldername,self.current_folders[foldername]))
-        #    self._get_children(self.current_path[-1][1])
-        ##return to parent if not at root
-        #elif foldername == '..' and self.current_path[-1][1] != 0:
-        #    del self.current_path[-1]
-        #    self._get_children(self.current_path[-1][1])
-        ##folder is actually a flie
-        #elif foldername in self.current_files:
-        #    raise Exception("not a folder")
-        ##at root, can't go any further
-        #elif foldername == '..' and self.current_path[-1][1] == 0:
-        #    return
-        ##folder does not exist
-        #else:
-        #    raise Exception("folder not found")
-
 #DOWNLOAD
     def download(self, filename, dest_stream):
         if self.fs.is_file(filename):
